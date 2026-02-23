@@ -139,7 +139,7 @@ export function applyForPlay(context: System): void {
 	context.scene.send({
 		type: "apply",
 		isHost: context.isHost,
-		name: g.game.selfId ?? "Player"
+		name: context.displayName
 	});
 }
 

@@ -2,6 +2,7 @@ import * as audio from "./audio";
 import * as utils from "./utils";
 import * as coe from "@akashic-extension/coe";
 import type * as tl from "@akashic-extension/akashic-timeline";
+import { resolvePlayerInfo } from "@akashic-extension/resolve-player-info";
 import type * as types from "./types";
 import { Vec2 } from "./math";
 import type { Vector2Like } from "./math";
@@ -441,6 +442,9 @@ export class System {
 
 	/// start()が実行済みか。
 	started: boolean = false;
+
+	// 画面に表示される名前
+	displayName: string = "ゲスト";
 
 	/// このインスタンスがホスト役か。
 	isHost: boolean;
@@ -1648,7 +1652,15 @@ export class System {
 			const y = ev.point.y + ev.startDelta.y;
 			if (0 <= x && x <= inPlayApplyButton.width &&
 				0 <= y && y <= inPlayApplyButton.height) {
-				utils.applyForPlay(this);
+				resolvePlayerInfo({}, (err, playerInfo) => {
+					if (err) {
+						this.logger.log("resolvePlayerInfo err:", err);
+					}
+					if (playerInfo?.name) {
+						this.displayName = playerInfo.name;
+					}
+					utils.applyForPlay(this);
+				});
 				inPlayApplyButton.touchable = false;
 				inPlayApplyButton.hide();
 			}

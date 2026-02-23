@@ -2,6 +2,7 @@ import * as fsm from "../finite-state-machine";
 import * as utils from "../utils";
 import * as common from "./common";
 import * as tl from "@akashic-extension/akashic-timeline";
+import { resolvePlayerInfo } from "@akashic-extension/resolve-player-info";
 import { HowToPlayE, FlashButtonE, CountDownE, DoingE } from "../E";
 import type { System } from "../System";
 import type { OhajikiActionData, OhajikiCommand } from "../coeMessages";
@@ -45,14 +46,28 @@ function createDifficultyButtons(context: System): FlashButtonE[] {
 	flashButtons.forEach(btn => {
 		btn.onPointDown.addOnce(() => {
 			flashButtons.forEach(btn2 => btn2.touchable = false);
-			scene.send({
-				type: "select-difficulty",
-				difficulty: btn.tag as Difficulty
-			});
 			if (context.isHost) {
 				// ホストは自動参加。
 				context.logger.log("auto apply");
-				utils.applyForPlay(context);
+				resolvePlayerInfo({}, (err, playerInfo) => {
+					if (err) {
+						context.logger.log("resolvePlayerInfo err:", err);
+					}
+					if (playerInfo?.name) {
+						context.displayName = playerInfo.name;
+					}
+					scene.send({
+						type: "select-difficulty",
+						difficulty: btn.tag as Difficulty
+					});
+					utils.applyForPlay(context);
+				});
+			} else {
+				// 念の為のフォールバック
+				scene.send({
+					type: "select-difficulty",
+					difficulty: btn.tag as Difficulty
+				});
 			}
 		});
 	});

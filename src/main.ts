@@ -34,7 +34,7 @@ function gameMain(param: GameMainParameterObject): void {
 	logger.info(`isActiveInstance(): ${g.game.isActiveInstance()}`);
 	logger.info(`hasRole("broadcaster"): ${hasRole("broadcaster")}`);
 
-	const isHost = (isSandbox() && hasRole("broadcaster"));
+	const isHost = hasRole("broadcaster");
 
 	logger.info(`isHost: ${isHost}`);
 

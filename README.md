@@ -4,6 +4,11 @@
 
 ![スクリーンショット](./img/screenshot.png)
 
+## [オリジナル](https://github.com/akashic-contents/explosive-ohajiki-chain) からの変更点
+
+* 非サンドボックス環境でも動作するように
+* プレイヤー名をユーザ名取得プラグインで取得
+
 ## ビルド方法
 
 ```sh
