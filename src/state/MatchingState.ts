@@ -294,10 +294,18 @@ class GuestMatchingState extends BaseState {
 					});
 
 					applyButton.onPointUp.addOnce(() => {
-						utils.applyForPlay(context);
 						applyButton.startFlash();
 						applyButton.flashPeak.add(() => applyButton.startCrossfade(0)); // 暗い画像へは一瞬で切り替える。
 						applyButton.touchable = false;
+						resolvePlayerInfo({}, (err, playerInfo) => {
+							if (err) {
+								context.logger.log("resolvePlayerInfo err:", err);
+							}
+							if (playerInfo?.name) {
+								context.displayName = playerInfo.name;
+							}
+							utils.applyForPlay(context);
+						});
 					});
 
 

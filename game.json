@@ -1855,7 +1855,9 @@
 	"environment": {
 		"sandbox-runtime": "3",
 		"nicolive": {
-			"supportedModes": ["multi_admission"]
+			"supportedModes": [
+				"multi_admission"
+			]
 		},
 		"external": {
 			"coeLimited": "0"
