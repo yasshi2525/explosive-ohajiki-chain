@@ -1850,6 +1850,94 @@
 			"type": "script",
 			"path": "script/math/Box.js",
 			"global": true
+		},
+		"BanMenuE": {
+			"type": "script",
+			"path": "script/E/BanMenuE.js",
+			"global": true
+		},
+		"BanModeE": {
+			"type": "script",
+			"path": "script/E/BanModeE.js",
+			"global": true
+		},
+		"assets/gameplay/ui/ban_button.png": {
+			"type": "image",
+			"path": "assets/gameplay/ui/ban_button.png",
+			"width": 67,
+			"height": 64
+		},
+		"assets/gameplay/ui/ban_button_pressed.png": {
+			"type": "image",
+			"path": "assets/gameplay/ui/ban_button_pressed.png",
+			"width": 67,
+			"height": 64
+		},
+		"assets/gameplay/ui/ban_siren_off.png": {
+			"type": "image",
+			"path": "assets/gameplay/ui/ban_siren_off.png",
+			"width": 85,
+			"height": 64
+		},
+		"assets/gameplay/ui/ban_siren_on.png": {
+			"type": "image",
+			"path": "assets/gameplay/ui/ban_siren_on.png",
+			"width": 85,
+			"height": 64
+		},
+		"assets/gameplay/ui/ban_msg_LimitExceeded.png": {
+			"type": "image",
+			"path": "assets/gameplay/ui/ban_msg_LimitExceeded.png",
+			"width": 447,
+			"height": 48
+		},
+		"assets/gameplay/ui/ban_msg_NotSupported.png": {
+			"type": "image",
+			"path": "assets/gameplay/ui/ban_msg_NotSupported.png",
+			"width": 447,
+			"height": 48
+		},
+		"assets/gameplay/ui/ban_msg_PlayerNotFound.png": {
+			"type": "image",
+			"path": "assets/gameplay/ui/ban_msg_PlayerNotFound.png",
+			"width": 447,
+			"height": 48
+		},
+		"assets/gameplay/ui/ban_msg_SelfBan.png": {
+			"type": "image",
+			"path": "assets/gameplay/ui/ban_msg_SelfBan.png",
+			"width": 447,
+			"height": 48
+		},
+		"assets/gameplay/ui/ban_msg_Unauthorized.png": {
+			"type": "image",
+			"path": "assets/gameplay/ui/ban_msg_Unauthorized.png",
+			"width": 447,
+			"height": 48
+		},
+		"assets/gameplay/ui/ban_msg_Unknown.png": {
+			"type": "image",
+			"path": "assets/gameplay/ui/ban_msg_Unknown.png",
+			"width": 447,
+			"height": 48
+		},
+		"assets/gameplay/ui/ban_msg_UserCancel.png": {
+			"type": "image",
+			"path": "assets/gameplay/ui/ban_msg_UserCancel.png",
+			"width": 447,
+			"height": 48
+		},
+		"assets/gameplay/ui/ban_msg_banned.png": {
+			"type": "image",
+			"path": "assets/gameplay/ui/ban_msg_banned.png",
+			"width": 447,
+			"height": 48
+		},
+		"assets/gameplay/ui/ban_msg_prompt.png": {
+			"type": "image",
+			"path": "assets/gameplay/ui/ban_msg_prompt.png",
+			"width": 447,
+			"height": 48
 		}
 	},
 	"environment": {
@@ -1860,7 +1948,8 @@
 			]
 		},
 		"external": {
-			"coeLimited": "0"
+			"coeLimited": "0",
+			"playerBan": "0"
 		}
 	},
 	"renderers": [
@@ -1887,12 +1976,17 @@
 		"node_modules/@akashic-extension/coe/lib/index.js",
 		"node_modules/@akashic-extension/coe/lib/parameters.js",
 		"node_modules/@akashic-extension/resolve-player-info/lib/FallbackDialog.js",
-		"node_modules/@akashic-extension/resolve-player-info/lib/index.js"
+		"node_modules/@akashic-extension/resolve-player-info/lib/index.js",
+		"node_modules/@multi-indiegame/akashic-player-ban-coe/lib/index.js",
+		"node_modules/@multi-indiegame/akashic-player-ban/lib/index.js",
+		"node_modules/@multi-indiegame/akashic-player-ban/lib/protocol.js"
 	],
 	"moduleMainScripts": {
 		"@akashic-extension/akashic-timeline": "node_modules/@akashic-extension/akashic-timeline/lib/index.js",
 		"@akashic-extension/coe": "node_modules/@akashic-extension/coe/lib/index.js",
 		"@akashic-extension/akashic-hover-plugin": "node_modules/@akashic-extension/akashic-hover-plugin/lib/index.js",
-		"@akashic-extension/resolve-player-info": "node_modules/@akashic-extension/resolve-player-info/lib/index.js"
+		"@akashic-extension/resolve-player-info": "node_modules/@akashic-extension/resolve-player-info/lib/index.js",
+		"@multi-indiegame/akashic-player-ban": "node_modules/@multi-indiegame/akashic-player-ban/lib/index.js",
+		"@multi-indiegame/akashic-player-ban-coe": "node_modules/@multi-indiegame/akashic-player-ban-coe/lib/index.js"
 	}
 }

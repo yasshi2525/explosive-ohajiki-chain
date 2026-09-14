@@ -179,6 +179,10 @@ export class PlayerPanelE extends g.E {
 
 		tween.every(
 			(e, p) => {
+				// 演出の途中で追放により取り除かれることがある。
+				if (this.destroyed()) {
+					return;
+				}
 				const t = highlit ? p : 1 - p;
 				this.blendCoef = t;
 				this.modified();

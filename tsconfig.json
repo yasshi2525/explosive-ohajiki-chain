@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
+		"rootDir": "./src",
     "target": "ES6",
-    "lib": ["es5"],
+    "lib": ["ES6"],
     "strict": true,
     "module": "commonjs" ,
     "outDir": "./script",

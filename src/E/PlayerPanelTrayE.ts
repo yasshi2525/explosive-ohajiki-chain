@@ -34,11 +34,56 @@ export class PlayerPanelTrayE extends g.E {
 		this.playerPanels.push(panel);
 	}
 
+	/**
+	 * パネルの即時削除。
+	 *
+	 * 追放のように、アニメーションの完了を待てない・他のタイムラインと
+	 * 競合しうる変更に使う。tween 版は開始時の y を捕まえて動かすので、
+	 * 別のタイムラインが同じパネルを動かしていると最終位置が壊れる。
+	 *
+	 * @param index 削除するパネルの位置。
+	 */
+	removeAtImmediately(index: number): void {
+		if (index < 0 || index >= this.playerPanels.length) {
+			return;
+		}
+
+		const panel = this.playerPanels.splice(index, 1)[0];
+		panel.destroy();
+		this.layout();
+	}
+
+	/**
+	 * 全パネルを所定の位置へ並べ直す。
+	 */
+	layout(): void {
+		for (let i = 0; i < this.playerPanels.length; i++) {
+			const panel = this.playerPanels[i];
+			panel.x = 0;
+			panel.y = i * 140;
+			panel.modified();
+		}
+	}
+
 	removeTop(tween: tl.Tween): tl.Tween {
-		const panel = this.playerPanels.shift();
-		if (!panel) {
+		return this.removeAt(0, tween);
+	}
+
+	/**
+	 * パネルの削除。
+	 *
+	 * 削除したパネルは右へ流れて消え、それより後ろのパネルが繰り上がる。
+	 *
+	 * @param index 削除するパネルの位置。
+	 * @param tween 演出のアニメーションが構築される tween 。
+	 */
+	removeAt(index: number, tween: tl.Tween): tl.Tween {
+		if (index < 0 || index >= this.playerPanels.length) {
 			return tween;
 		}
+
+		const panel = this.playerPanels[index];
+		this.playerPanels.splice(index, 1);
 
 		const startX = panel.x;
 		const offsetX = g.game.width - this.x;
@@ -53,21 +98,23 @@ export class PlayerPanelTrayE extends g.E {
 			)
 			.call(() => panel.destroy());
 
-		if (this.playerPanels.length === 0) {
-			return tween;
-		}
-
-		const offsetY = -140;
-
-		for (let i = 0; i < this.playerPanels.length; i++) {
+		// 繰り上がる位置は動き始める時点の並びから求める。演出を組んでから
+		// 動き始めるまでに、追放で他のパネルが即時削除され並びが変わることがある。
+		for (let i = index; i < this.playerPanels.length; i++) {
 
 			const panel = this.playerPanels[i];
-			const startY = panel.y;
+			let startY: number | null = null;
 			tween
 				.every(
 					(e, p) => {
-						panel.y = startY + offsetY * p;
-						// console.log(`panel y = ${panel.y}`);
+						const panelIndex = this.playerPanels.indexOf(panel);
+						if (panel.destroyed() || panelIndex < 0) {
+							return;
+						}
+						if (startY === null) {
+							startY = panel.y;
+						}
+						panel.y = startY + (panelIndex * 140 - startY) * p;
 						panel.modified();
 					},
 					250
@@ -84,17 +131,25 @@ export class PlayerPanelTrayE extends g.E {
 
 		this.playerPanels.push(panel);
 
-		const idx = this.playerPanels.length - 1;
 		const startX = panel.x;
 		const offsetX = -startX;
 
+		// 縦位置は現れる時点の並びから求める。演出を組んでから現れるまでに、
+		// 追放で他のパネルが即時削除され並びが変わることがある。
 		tween
 			.call(() => {
-				panel.y = idx * 140;
+				const panelIndex = this.playerPanels.indexOf(panel);
+				if (panel.destroyed() || panelIndex < 0) {
+					return;
+				}
+				panel.y = panelIndex * 140;
 				panel.modified();
 			})
 			.every(
 				(e, p) => {
+					if (panel.destroyed()) {
+						return;
+					}
 					panel.x = startX + offsetX * p;
 					panel.modified();
 				},

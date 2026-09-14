@@ -9,6 +9,8 @@ export * from "./LevelE";
 export * from "./NumberIndicatorE";
 export * from "./PlayerPanelE";
 export * from "./PlayerPanelTrayE";
+export * from "./BanModeE";
+export * from "./BanMenuE";
 export * from "./ComboBonusIndicatorE";
 export * from "./InPlayApplyButton";
 export * from "./WinningRateE";
