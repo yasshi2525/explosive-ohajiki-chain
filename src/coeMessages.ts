@@ -63,6 +63,13 @@ export interface GoNextTurnActionData {
 	serialized: SerializedSystem;
 }
 
+/**
+ * 追放されたプレイヤーの手番を、投数を使わずに飛ばす。
+ */
+export interface SkipTurnActionData {
+	type: "skip-turn";
+}
+
 export interface KokoActionData {
 	type: "koko";
 	x: number;
@@ -89,20 +96,21 @@ export interface GoResultActionData {
  * おはじきアクション。
  */
 export type OhajikiActionData =
-	SelectDifficultyActionData |
-	ApplyActionData |
-	StartIntroductionData |
-	StartGameActionData |
-	StrikeActionData |
-	GameClearActionData |
-	GameOverActionData |
-	LevelClearActionData |
-	LevelClearMultiActionData |
-	GoNextLevelActionData |
-	GoNextTurnActionData |
-	KokoActionData |
-	GoResultActionData |
-	NiceActionData;
+	| SelectDifficultyActionData
+	| ApplyActionData
+	| StartIntroductionData
+	| StartGameActionData
+	| StrikeActionData
+	| GameClearActionData
+	| GameOverActionData
+	| LevelClearActionData
+	| LevelClearMultiActionData
+	| GoNextLevelActionData
+	| GoNextTurnActionData
+	| SkipTurnActionData
+	| KokoActionData
+	| GoResultActionData
+	| NiceActionData;
 
 //
 // コマンド。
@@ -169,6 +177,19 @@ export interface GoNextTurnCommand {
 	serialized: SerializedSystem;
 }
 
+/**
+ * 追放されたプレイヤーの手番を、投数を使わずに飛ばす。
+ */
+export interface SkipTurnCommand {
+	type: "skip-turn";
+}
+
+/**
+ * 実行基盤が確定させた追放・解除。
+ *
+ * 拡張ライブラリの通知は coe の EventFilter に握り潰されるので、
+ * Controller が拾い直してコマンドとして配る。詳細は playerBan.ts 。
+ */
 export interface KokoCommand {
 	type: "koko";
 	userId: string;
@@ -196,18 +217,19 @@ export interface GoResultCommand {
  * おはじきコマンド。
  */
 export type OhajikiCommand =
-	SelectDifficultyCommand |
-	StartMatchingCommand |
-	StartIntroductionCommand |
-	StartGameCommand |
-	AddPlayerCommand |
-	StrikeCommand |
-	GameClearCommand |
-	GameOverCommand |
-	LevelClearCommand |
-	LevelClearMultiCommand |
-	GoNextLevelCommand |
-	GoNextTurnCommand |
-	KokoCommand |
-	NiceCommand |
-	GoResultCommand;
+	| SelectDifficultyCommand
+	| StartMatchingCommand
+	| StartIntroductionCommand
+	| StartGameCommand
+	| AddPlayerCommand
+	| StrikeCommand
+	| GameClearCommand
+	| GameOverCommand
+	| LevelClearCommand
+	| LevelClearMultiCommand
+	| GoNextLevelCommand
+	| GoNextTurnCommand
+	| SkipTurnCommand
+	| KokoCommand
+	| NiceCommand
+	| GoResultCommand;

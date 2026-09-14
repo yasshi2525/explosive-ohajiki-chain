@@ -6,8 +6,10 @@
 
 ## [オリジナル](https://github.com/akashic-contents/explosive-ohajiki-chain) からの変更点
 
-* 非サンドボックス環境でも動作するように
-* プレイヤー名をユーザ名取得プラグインで取得
+- 非サンドボックス環境でも動作するように
+- プレイヤー名をユーザ名取得プラグインで取得
+- 放送者（部屋主）が投球待ちキューのプレイヤーをプレイヤー追放プラグインで BAN 可能に（BAN されたプレイヤーは待機列・抽選から外れる）
+  - BAN 機能は [`@multi-indiegame/akashic-player-ban`](https://github.com/multi-indiegame/akashic-player-ban) に対応した実行基盤で有効になります
 
 ## ビルド方法
 

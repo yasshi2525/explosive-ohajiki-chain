@@ -80,7 +80,7 @@ export class LevelStartState extends BaseState {
 			// マネージャに登録なく BAN されてないプレイヤーなら途中参加を認める。
 			if (!system.playerManager.findPlayer(g.game.selfId ?? "") &&
 				!system.playerManager.isBannedPlayer(g.game.selfId ?? "")) {
-				system.inPlayApplyButton.show();
+				system.showInPlayApplyButton();
 			}
 
 			audio.playbackBGM("/assets/common/bgm/playing");
@@ -148,7 +148,7 @@ export class LevelStartState extends BaseState {
 			});
 			if (winning) {
 				tween
-					.call(() => system.notifyWinningByLottery(this.timeline.create({}), false));
+					.call(() => system.notifyWinningByLottery(this.timeline.create({}), null));
 			}
 		}
 
@@ -193,19 +193,15 @@ export class LevelStartState extends BaseState {
 				// 待機列(queue)の進行。
 				playerManager.changePlayer();
 
-				// プレイヤー情報の取得。
-				const addedPlayerData = playerManager.getLastQueuedPlayerData();
-
 				// 待機列パネルの更新、次のレベルへ進行、おはじきの配置。
-				system.removePlayerPanel(tween);
-				if (addedPlayerData) {
-					system.addPlayerPanel(addedPlayerData, false, tween);
+				// 全員が追放されて待機列が埋まらなかった時はパネルを足さない。
+				const addedPanels = system.syncPlayerPanels(true, tween);
 
-					// もし自分が待機列に現れた＝当選したなら、当選通知。
-					if (addedPlayerData.player.id === g.game.selfId) {
-						tween
-							.call(() => system.notifyWinningByLottery(this.timeline.create({}), true));
-					}
+				// もし自分が待機列に現れた＝当選したなら、当選通知。
+				const myAddedPanel = addedPanels.filter(added => added.playerData.player.id === g.game.selfId)[0];
+				if (myAddedPanel) {
+					tween
+						.call(() => system.notifyWinningByLottery(this.timeline.create({}), myAddedPanel.panel));
 				}
 			}
 

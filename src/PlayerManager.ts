@@ -161,11 +161,85 @@ export class PlayerManager {
 			return;
 		}
 
+		this.forceBan(player);
+	}
+
+	/**
+	 * ホスト(放送者)であってもプレイヤーをBANする。
+	 *
+	 * 実行基盤による追放のためのもの。追放されたプレイヤーは実行基盤から
+	 * 切断されているので、放送者として登録されていても進行に残してはならない。
+	 *
+	 * @param player プレイヤー。
+	 */
+	forceBan(player: Player): void {
 		if (!this.isBannedPlayer(player.id)) {
 			this.bannedPlayers.push(player);
 		}
 
 		this.removePlayer(player);
+	}
+
+	/**
+	 * BAN の解除。
+	 *
+	 * 解除できた時、そのプレイヤーを返す。
+	 *
+	 * 自動投石による除名も一緒に解く。実行基盤の解除は「また参加してよい」と
+	 * いう明示の判断なので、コンテンツ側の除名理由を残して締め出し続けると
+	 * 解除が効いていないようにしか見えない。
+	 *
+	 * 抽選対象には戻さない。参加はプレイヤー自身の操作に任せる。
+	 *
+	 * @param id プレイヤーID。
+	 */
+	unban(id: string): Player | null {
+		const player = this.bannedPlayers.filter(banned => banned.id === id)[0];
+
+		if (!player) {
+			return null;
+		}
+
+		player.autoStrikeCount = 0;
+
+		this.bannedPlayers = this.bannedPlayers.filter(
+			banned => banned.id !== id
+		);
+
+		return player;
+	}
+
+	/**
+	 * 投石待機列でのプレイヤーの位置を調べる。
+	 *
+	 * 待機列にいなければ -1 を返す。
+	 *
+	 * @param id プレイヤーID。
+	 * @param fromIndex 探し始める位置。
+	 */
+	findQueueIndex(id: string, fromIndex: number = 0): number {
+		for (let i = fromIndex; i < this.queue.length; i++) {
+			if (this.queue[i].player.id === id) {
+				return i;
+			}
+		}
+
+		return -1;
+	}
+
+	/**
+	 * 投石待機列からプレイヤーを取り除く。
+	 *
+	 * 補充は行わない。必要なら fillQueue() を呼ぶこと。
+	 *
+	 * @param index 取り除くプレイヤーの位置。
+	 */
+	removeQueueAt(index: number): PlayerData | null {
+		if (index < 0 || index >= this.queue.length) {
+			return null;
+		}
+
+		return this.queue.splice(index, 1)[0];
 	}
 
 	/**

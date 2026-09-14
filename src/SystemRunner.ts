@@ -1,3 +1,4 @@
+import { isBanCommand } from "@multi-indiegame/akashic-player-ban-coe";
 import { OhajikiStateManager, MatchingState } from "./state";
 import type { System } from "./System";
 import type { OhajikiCommand } from "./coeMessages";
@@ -19,15 +20,19 @@ export class SystemRunner {
 		const scene = this.system.scene;
 
 		scene.onUpdate.add(() => this.update());
-		scene.onPointDownCapture.add(ev => this.onPointDown(ev));
-		scene.onPointMoveCapture.add(ev => this.onPointMove(ev));
-		scene.onCommandReceive.add(command => this.onCommand(command));
+		scene.onPointDownCapture.add((ev) => this.onPointDown(ev));
+		scene.onPointMoveCapture.add((ev) => this.onPointMove(ev));
+		scene.onCommandReceive.add((command) => this.onCommand(command));
 
 		this.system.start();
 
 		const state = new MatchingState();
 
-		this.stateManager = new OhajikiStateManager(this.system, state, this.system.logger);
+		this.stateManager = new OhajikiStateManager(
+			this.system,
+			state,
+			this.system.logger,
+		);
 	}
 
 	update(): void {
@@ -36,6 +41,12 @@ export class SystemRunner {
 	}
 
 	onCommand(command: OhajikiCommand): void {
+		// 追放通知はアダプタが受け取って onPlayerBanned を発火させる。
+		// ステートへ渡すと TurnState が timeline を巻いてしまうので弾く。
+		if (isBanCommand(command)) {
+			return;
+		}
+
 		this.stateManager.command(command);
 	}
 

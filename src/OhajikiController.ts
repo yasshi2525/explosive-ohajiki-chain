@@ -1,5 +1,9 @@
 import * as coe from "@akashic-extension/coe";
-import type { OhajikiActionData, OhajikiCommand, KokoCommand } from "./coeMessages";
+import type {
+	OhajikiActionData,
+	OhajikiCommand,
+	KokoCommand,
+} from "./coeMessages";
 import type { Logger } from "./Logger";
 
 class LoadMonitor {
@@ -41,8 +45,10 @@ class LoadMonitor {
 	}
 }
 
-export class OhajikiController extends coe.COEController<OhajikiCommand, OhajikiActionData> {
-
+export class OhajikiController extends coe.COEController<
+	OhajikiCommand,
+	OhajikiActionData
+> {
 	private kokoCommandQueue: KokoCommand[];
 	private maxKokoPerSec: number;
 	private loadMonitor: LoadMonitor;
@@ -78,7 +84,7 @@ export class OhajikiController extends coe.COEController<OhajikiCommand, Ohajiki
 
 		// 無制限。
 		if (this.maxKokoPerSec == null) {
-			this.kokoCommandQueue.forEach(command => this.broadcast(command));
+			this.kokoCommandQueue.forEach((command) => this.broadcast(command));
 			this.loadMonitor.addLoad(this.kokoCommandQueue.length);
 			this.kokoCommandQueue = [];
 			return;
@@ -90,8 +96,8 @@ export class OhajikiController extends coe.COEController<OhajikiCommand, Ohajiki
 			0,
 			Math.min(
 				this.kokoCommandQueue.length,
-				this.maxKokoPerSec - totalLoad
-			)
+				this.maxKokoPerSec - totalLoad,
+			),
 		);
 
 		const drop = this.kokoCommandQueue.length - kokoEmitCount;
@@ -120,59 +126,63 @@ export class OhajikiController extends coe.COEController<OhajikiCommand, Ohajiki
 		if (action.data.type === "select-difficulty") {
 			this.broadcast({
 				type: "select-difficulty",
-				difficulty: action.data.difficulty
+				difficulty: action.data.difficulty,
 			});
 		} else if (action.data.type === "apply") {
 			this.broadcast({
 				type: "add-player",
 				player: action.player,
 				isHost: action.data.isHost,
-				name: action.data.name
+				name: action.data.name,
 			});
 		} else if (action.data.type === "start-introduction") {
 			this.broadcast({
 				type: "start-introduction",
-				difficulty: action.data.difficulty
+				difficulty: action.data.difficulty,
 			});
 		} else if (action.data.type === "start-game") {
 			this.broadcast({
-				type: "start-game"
+				type: "start-game",
 			});
 		} else if (action.data.type === "strike") {
 			this.broadcast({
 				type: "strike",
 				impulse: action.data.impulse,
-				autoStrike: action.data.autoStrike
+				autoStrike: action.data.autoStrike,
 			});
 		} else if (action.data.type === "game-clear") {
 			this.broadcast({
 				type: "game-clear",
-				serialized: action.data.serialized
+				serialized: action.data.serialized,
 			});
 		} else if (action.data.type === "game-over") {
 			this.broadcast({
 				type: "game-over",
-				serialized: action.data.serialized
+				serialized: action.data.serialized,
 			});
 		} else if (action.data.type === "level-clear") {
 			this.broadcast({
 				type: "level-clear",
-				serialized: action.data.serialized
+				serialized: action.data.serialized,
 			});
 		} else if (action.data.type === "level-clear-multi") {
 			this.broadcast({
 				type: "level-clear-multi",
-				serialized: action.data.serialized
+				serialized: action.data.serialized,
 			});
 		} else if (action.data.type === "go-next-level") {
 			this.broadcast({
 				type: "go-next-level",
-				serialized: action.data.serialized
+				serialized: action.data.serialized,
 			});
 		} else if (action.data.type === "go-next-turn") {
 			this.broadcast({
 				type: "go-next-turn",
-				serialized: action.data.serialized
+				serialized: action.data.serialized,
+			});
+		} else if (action.data.type === "skip-turn") {
+			this.broadcast({
+				type: "skip-turn",
 			});
 		} else if (action.data.type === "go-result") {
 			this.broadcast({
@@ -182,20 +192,20 @@ export class OhajikiController extends coe.COEController<OhajikiCommand, Ohajiki
 				areaId: action.data.areaId,
 				niceAward: action.data.niceAward,
 				comboAward: action.data.comboAward,
-				narrowEscapeAward: action.data.narrowEscapeAward
+				narrowEscapeAward: action.data.narrowEscapeAward,
 			});
 		} else if (action.data.type === "koko") {
 			this.kokoCommandQueue.push({
 				type: "koko",
 				userId: action.player.id ?? "",
 				x: action.data.x,
-				y: action.data.y
+				y: action.data.y,
 			});
 		} else if (action.data.type === "nice") {
 			this.broadcast({
 				type: "nice",
 				x: action.data.x,
-				y: action.data.y
+				y: action.data.y,
 			});
 		}
 	}

@@ -3,6 +3,12 @@ import * as utils from "./utils";
 import * as coe from "@akashic-extension/coe";
 import type * as tl from "@akashic-extension/akashic-timeline";
 import { resolvePlayerInfo } from "@akashic-extension/resolve-player-info";
+import {
+	banPlayer,
+	isSupported,
+	onPlayerBanned,
+	onPlayerUnbanned,
+} from "@multi-indiegame/akashic-player-ban";
 import type * as types from "./types";
 import { Vec2 } from "./math";
 import type { Vector2Like } from "./math";
@@ -10,33 +16,63 @@ import { EntityManager } from "./entity-system-2";
 import { Border, World } from "./ohajiki";
 import type { Arbiter, Ohajiki } from "./ohajiki";
 import type { Logger } from "./Logger";
-import type { Player } from "./Player";
+import { Player } from "./Player";
 import { PlayerManager } from "./PlayerManager";
 import type { PlayerData } from "./PlayerManager";
-import { applyBlast, createBorders, createCorners, createOhajikiE } from "./game-common";
+import {
+	applyBlast,
+	createBorders,
+	createCorners,
+	createOhajikiE,
+} from "./game-common";
 import type { OhajikiActionData, OhajikiCommand } from "./coeMessages";
 import { TimeManager } from "./TimeManager";
 import type { Level } from "./Level";
 import {
-	deployOhajikiForLevel, deployOhajiki, isVacantPosition
+	deployOhajikiForLevel,
+	deployOhajiki,
+	isVacantPosition,
 } from "./game-common";
 import type {
-	Configuration, OhajikiParameter, FieldParameter, CrystalOhajikiParameter,
-	DeployArea
+	Configuration,
+	OhajikiParameter,
+	FieldParameter,
+	CrystalOhajikiParameter,
+	DeployArea,
 } from "./Configuration";
 import type {
-	BaseGameEntity, ExplosionParam,
-	SerializedOhajikiGameEntity
+	BaseGameEntity,
+	ExplosionParam,
+	SerializedOhajikiGameEntity,
 } from "./entity";
-import { OhajikiGameEntity, BorderGameEntity
-} from "./entity";
+import { OhajikiGameEntity, BorderGameEntity } from "./entity";
 import {
-	TrailRenderer, LevelE, NumberIndicatorE,
-	PlayerPanelE, PlayerPanelTrayE, ComboBonusIndicatorE,
-	InPlayApplyButton, WinningRateE
+	TrailRenderer,
+	LevelE,
+	NumberIndicatorE,
+	PlayerPanelE,
+	PlayerPanelTrayE,
+	ComboBonusIndicatorE,
+	InPlayApplyButton,
+	WinningRateE,
+	BanMenuE,
+	BanModeE,
+	banMessageIds,
 } from "./E";
+import type { BanMessageId } from "./E";
 
-export class OhajikiScene extends coe.Scene<OhajikiCommand, OhajikiActionData> { }
+/**
+ * System#syncPlayerPanels() で追加したパネル。
+ */
+export interface AddedPlayerPanel {
+	playerData: PlayerData;
+	panel: PlayerPanelE;
+}
+
+export class OhajikiScene extends coe.Scene<
+	OhajikiCommand,
+	OhajikiActionData
+> {}
 
 interface PlayerOhajikiGameEntityParam {
 	position?: Vector2Like;
@@ -90,7 +126,10 @@ export interface SerializedSystem {
  * @param comboCount 爆発回数。
  * @param config ボーナスとして与えられる透明石に関する設定。
  */
-function isComboBonus(comboCount: number, config: CrystalOhajikiParameter): boolean {
+function isComboBonus(
+	comboCount: number,
+	config: CrystalOhajikiParameter,
+): boolean {
 	const comboBonuses = config.comboBonuses;
 
 	for (let i = 0; i < comboBonuses.length; i++) {
@@ -121,15 +160,12 @@ function getExplosionSeAssetName(explosionCount: number): string {
 		"/assets/gameplay/se/explosion_4",
 		"/assets/gameplay/se/explosion_5",
 		"/assets/gameplay/se/explosion_6",
-		"/assets/gameplay/se/explosion_7"
+		"/assets/gameplay/se/explosion_7",
 	];
 
 	const audioAssetIdx = Math.max(
 		0,
-		Math.min(
-			explosionAudioAssetNames.length - 1,
-			explosionCount - 1
-		)
+		Math.min(explosionAudioAssetNames.length - 1, explosionCount - 1),
 	);
 
 	return explosionAudioAssetNames[audioAssetIdx];
@@ -152,7 +188,11 @@ export interface ExplosionParamEx extends ExplosionParam {
  * @param explosionCount 連鎖回数。１以上の整数。
  * @param config クリスタル発生に関する設定。
  */
-function createExplosionParamEx(entity: BaseGameEntity, explosionCount: number, config: CrystalOhajikiParameter): ExplosionParamEx | null {
+function createExplosionParamEx(
+	entity: BaseGameEntity,
+	explosionCount: number,
+	config: CrystalOhajikiParameter,
+): ExplosionParamEx | null {
 	// 基本爆発パラメータ。
 	const param = entity.createExplosionParam();
 
@@ -174,7 +214,7 @@ function createExplosionParamEx(entity: BaseGameEntity, explosionCount: number, 
 		sources: param.sources,
 		appearance: param.appearance,
 		spawnCrystal,
-		seAssetName
+		seAssetName,
 	};
 }
 
@@ -258,7 +298,13 @@ class OneWayBorderSlope {
 	/** ロガー。 */
 	private logger: Logger;
 
-	constructor(world: World, oneWayBorder: Border, timeLimit: number, tossArea: DeployArea, logger: Logger) {
+	constructor(
+		world: World,
+		oneWayBorder: Border,
+		timeLimit: number,
+		tossArea: DeployArea,
+		logger: Logger,
+	) {
 		this.world = world;
 		this.oneWayBorder = oneWayBorder;
 		this.tossArea = tossArea;
@@ -308,15 +354,20 @@ class OneWayBorderSlope {
 		}
 
 		// スロープの力をおはじきに加える。
-		this.world.ohajikis.forEach(ohajiki => {
+		this.world.ohajikis.forEach((ohajiki) => {
 			if (!ohajiki || ohajiki.invMass === 0) {
 				return;
 			}
-			const separation = this.oneWayBorder.normal.dot(ohajiki.position) + this.oneWayBorder.d - ohajiki.radius;
+			const separation =
+				this.oneWayBorder.normal.dot(ohajiki.position) +
+				this.oneWayBorder.d -
+				ohajiki.radius;
 			if (separation < 0) {
 				const speed = ohajiki.velocity.length();
 				if (speed < this.world.restTolerance) {
-					const v = this.oneWayBorder.normal.clone().scale(this.world.restTolerance);
+					const v = this.oneWayBorder.normal
+						.clone()
+						.scale(this.world.restTolerance);
 					ohajiki.velocity.x = v.x;
 					ohajiki.velocity.y = v.y;
 				}
@@ -378,7 +429,10 @@ class OneWayBorderSlope {
 
 		for (let i = 0; i < this.world.ohajikis.length; i++) {
 			const ohajiki = this.world.ohajikis[i];
-			if (ohajiki && this.isStrikedStationaryOhajikiBehindTheOneWayBorder(ohajiki)) {
+			if (
+				ohajiki &&
+				this.isStrikedStationaryOhajikiBehindTheOneWayBorder(ohajiki)
+			) {
 				const result = this.toss(ohajiki, gen);
 				if (!result) {
 					// 諦めて中断。
@@ -395,12 +449,17 @@ class OneWayBorderSlope {
 	 *
 	 * @param ohajiki おはじき。
 	 */
-	private isStrikedStationaryOhajikiBehindTheOneWayBorder(ohajiki: Ohajiki): boolean {
+	private isStrikedStationaryOhajikiBehindTheOneWayBorder(
+		ohajiki: Ohajiki,
+	): boolean {
 		const entity = ohajiki.userData as OhajikiGameEntity;
 		if (entity.destroyed()) return false;
 		if (!entity.striked) return false;
 		if (!ohajiki.velocity.equal(Vec2.zero)) return false;
-		const separation = this.oneWayBorder.normal.dot(ohajiki.position) + this.oneWayBorder.d - ohajiki.radius;
+		const separation =
+			this.oneWayBorder.normal.dot(ohajiki.position) +
+			this.oneWayBorder.d -
+			ohajiki.radius;
 		return separation < 0;
 	}
 
@@ -410,7 +469,10 @@ class OneWayBorderSlope {
 	private strikedStationaryOhajikiBehindTheOneWayBorderExists(): boolean {
 		for (let i = 0; i < this.world.ohajikis.length; i++) {
 			const ohajiki = this.world.ohajikis[i];
-			if (ohajiki && this.isStrikedStationaryOhajikiBehindTheOneWayBorder(ohajiki)) {
+			if (
+				ohajiki &&
+				this.isStrikedStationaryOhajikiBehindTheOneWayBorder(ohajiki)
+			) {
 				return true;
 			}
 		}
@@ -427,7 +489,10 @@ class OneWayBorderSlope {
 			if (!ohajiki) continue;
 			const entity = ohajiki.userData as OhajikiGameEntity;
 			if (entity.destroyed()) continue;
-			const separation = this.oneWayBorder.normal.dot(ohajiki.position) + this.oneWayBorder.d - ohajiki.radius;
+			const separation =
+				this.oneWayBorder.normal.dot(ohajiki.position) +
+				this.oneWayBorder.d -
+				ohajiki.radius;
 			if (separation < 0) {
 				return false;
 			}
@@ -550,7 +615,7 @@ export class System {
 				game: g.game,
 				fontFamily: "monospace",
 				fontWeight: "bold",
-				size: this.ohajikiImage.height / 2
+				size: this.ohajikiImage.height / 2,
 			});
 		}
 		return this._ohajikiFont;
@@ -591,13 +656,23 @@ export class System {
 	private playerPanelTray!: PlayerPanelTrayE;
 	private panelFont!: g.Font;
 
-	constructor(scene: OhajikiScene, isHost: boolean, config: Configuration, logger: Logger) {
+	/** BAN モードの切り替え。放送者(部屋主)のインスタンスにだけ存在する。 */
+	private banModeE: BanModeE | null;
+
+	constructor(
+		scene: OhajikiScene,
+		isHost: boolean,
+		config: Configuration,
+		logger: Logger,
+	) {
 		this.scene = scene;
 		this.isHost = isHost;
 		this.config = config;
 		this.logger = logger;
 		this.started = false;
-		this.rand = new g.XorshiftRandomGenerator(utils.randomInt(g.game.random, 0, 10000));
+		this.rand = new g.XorshiftRandomGenerator(
+			utils.randomInt(g.game.random, 0, 10000),
+		);
 		this._ohajikiFont = null;
 		this._difficulty = config.general.defaultDifficulty;
 		this.worldId = 0;
@@ -608,6 +683,7 @@ export class System {
 		this._explosionCount = 0;
 		this.fieldIndex = 0;
 		this.slopeActive = false;
+		this.banModeE = null;
 
 		this.explosion = new g.Trigger<ExplosionEvent>();
 		this.spark = new g.Trigger<SparkEvent>();
@@ -618,21 +694,37 @@ export class System {
 		this.playerManager = new PlayerManager(
 			() => this.getRandomOhajiliLife(this.getPlayerOhajikiParam()!),
 			this.rand,
-			this.logger
+			this.logger,
 		);
 
 		this.timeManager = new TimeManager(
 			this.config.hitstop.timeScale,
-			this.config.hitstop.durationInFrame
+			this.config.hitstop.durationInFrame,
 		);
 
 		this.setupSceneGraph();
+
+		// 進行から外すのは決定的な onPlayerBanned だけで行う。
+		// banPlayer() の callback はローカルなのでここには使えない。
+		//
+		// coe は g.MessageEvent を握り潰すので、通知は
+		// @multi-indiegame/akashic-player-ban-coe が Controller の
+		// broadcast 経路へ載せ替えてここまで運んでくる。
+		//
+		// 自分が要求していない追放・解除も届く(実行基盤の管理画面など)ので、
+		// 両方のハンドラを登録しておく。解除を受け取らないと、戻ってきた
+		// 相手を拒み続けることになる。
+		onPlayerBanned.add((ev) => this.handlePlayerBanned(ev.playerId), this);
+		onPlayerUnbanned.add(
+			(ev) => this.handlePlayerUnbanned(ev.playerId),
+			this,
+		);
 
 		this.entityManager = new EntityManager<BaseGameEntity>();
 
 		this.world = new World({
 			iteration: this.config.physics.iteration,
-			restTolerance: this.config.physics.restTolerance
+			restTolerance: this.config.physics.restTolerance,
 		});
 
 		this.started = true;
@@ -641,7 +733,7 @@ export class System {
 	update(): void {
 		this.entityManager.flush();
 		this.world.flush();
-		this.entityManager.entities.forEach(entity => {
+		this.entityManager.entities.forEach((entity) => {
 			if (entity) {
 				entity.clearDamage();
 			}
@@ -656,7 +748,7 @@ export class System {
 		// ゲームエンティティの更新（含む物理世界の反映）。
 		this.entityManager.update();
 
-		audio.update(Math.floor(1 / g.game.fps * 1000));
+		audio.update(Math.floor((1 / g.game.fps) * 1000));
 
 		// g.E#update による更新がこの後に続く。はず。
 	}
@@ -706,7 +798,10 @@ export class System {
 			// 一方通行の壁を超えていない。
 			// ただしスロープが掃き出しを諦めた時は見逃す。
 			if (!this.oneWayBorderSlope.giveup) {
-				const separation = this.oneWayBorder.normal.dot(ohajiki.position) + this.oneWayBorder.d - ohajiki.radius;
+				const separation =
+					this.oneWayBorder.normal.dot(ohajiki.position) +
+					this.oneWayBorder.d -
+					ohajiki.radius;
 				if (separation < 0) {
 					return false;
 				}
@@ -743,7 +838,10 @@ export class System {
 	 */
 	updateWorld(): void {
 		const baseIteration = 10;
-		const iteration = Math.max(1, Math.round(baseIteration * this.timeManager.timeScale));
+		const iteration = Math.max(
+			1,
+			Math.round(baseIteration * this.timeManager.timeScale),
+		);
 		const subDt = this.timeManager.dt / iteration;
 
 		let willDie: boolean = false;
@@ -763,7 +861,9 @@ export class System {
 			// 2. 致死性衝突の時点でシミュレーションを中断する。
 
 			// 衝突判定対象を取得。
-			arbiters = this.world.arbiters.filter(arbiter => !arbiter.longevity);
+			arbiters = this.world.arbiters.filter(
+				(arbiter) => !arbiter.longevity,
+			);
 
 			allArbiters = allArbiters.concat(arbiters);
 
@@ -787,11 +887,13 @@ export class System {
 		this.fireSparkEvent(allArbiters);
 
 		// 接触の状態と累積ダメージに応じた爆発パラメータを生成する。
-		const explosionParams = willDie ? this.createOhajikiExplosionParams(
-			arbiters,
-			this.explosionCount,
-			this.config
-		) : [];
+		const explosionParams = willDie
+			? this.createOhajikiExplosionParams(
+				arbiters,
+				this.explosionCount,
+				this.config,
+			)
+			: [];
 
 		this.explosionCount += explosionParams.length;
 
@@ -802,7 +904,7 @@ export class System {
 		const blastDamageExplosionParams = this.updateBlastDamage(
 			this.entityManager.entities,
 			this.explosionCount,
-			this.config
+			this.config,
 		);
 
 		this.explosionCount += blastDamageExplosionParams.length;
@@ -813,8 +915,10 @@ export class System {
 		}
 
 		// 爆発を起こす。
-		explosionParams.forEach(param => this.applyExplosion(param));
-		blastDamageExplosionParams.forEach(param => this.applyExplosion(param));
+		explosionParams.forEach((param) => this.applyExplosion(param));
+		blastDamageExplosionParams.forEach((param) =>
+			this.applyExplosion(param),
+		);
 	}
 
 	/**
@@ -823,7 +927,7 @@ export class System {
 	save(): SerializedSystem {
 		const sers: SerializedOhajikiGameEntity[] = [];
 
-		this.entityManager.entities.forEach(entity => {
+		this.entityManager.entities.forEach((entity) => {
 			if (!(entity instanceof OhajikiGameEntity)) {
 				return;
 			}
@@ -837,7 +941,7 @@ export class System {
 			worldId: this.worldId,
 			areaId: this.areaId,
 			fieldIndex: this.fieldIndex,
-			ohajikiSers: sers
+			ohajikiSers: sers,
 		};
 	}
 
@@ -845,9 +949,8 @@ export class System {
 	 * ターン終了時の状態を復元する。
 	 */
 	restore(serialized: SerializedSystem): void {
-
 		// cleanup.
-		this.entityManager.entities.forEach(entity => {
+		this.entityManager.entities.forEach((entity) => {
 			if (!(entity instanceof OhajikiGameEntity)) {
 				return;
 			}
@@ -865,8 +968,10 @@ export class System {
 
 		this.oneWayBorderSlope.reset();
 
-		this.logger.log(`Deserialize ${serialized.ohajikiSers.length} ohajiki(s).`);
-		serialized.ohajikiSers.forEach(ser => {
+		this.logger.log(
+			`Deserialize ${serialized.ohajikiSers.length} ohajiki(s).`,
+		);
+		serialized.ohajikiSers.forEach((ser) => {
 			const ohajikiGameEntity = new OhajikiGameEntity({
 				type: ser.type,
 
@@ -897,7 +1002,7 @@ export class System {
 					mu: ser.ohajikiParam.mu,
 					// ...ser.ohajikiParam,
 
-					position: ser.position
+					position: ser.position,
 				},
 
 				// strikeParam: null,
@@ -905,7 +1010,7 @@ export class System {
 				blastRadius: ser.blastRadius,
 				blastImpulse: ser.blastImpulse,
 
-				logger: this.logger
+				logger: this.logger,
 			});
 
 			this.entityManager.register(ohajikiGameEntity);
@@ -928,7 +1033,9 @@ export class System {
 		let worldId: number;
 		let areaId: number;
 
-		if (this.config.worlds[this.difficulty][this.worldId][this.areaId + 1]) {
+		if (
+			this.config.worlds[this.difficulty][this.worldId][this.areaId + 1]
+		) {
 			worldId = this.worldId;
 			areaId = this.areaId + 1;
 		} else {
@@ -956,7 +1063,11 @@ export class System {
 			this.worldId = param.worldId;
 			this.areaId = param.areaId;
 		} else {
-			if (this.config.worlds[this.difficulty][this.worldId][this.areaId + 1]) {
+			if (
+				this.config.worlds[this.difficulty][this.worldId][
+					this.areaId + 1
+				]
+			) {
 				this.areaId++;
 			} else {
 				this.worldId++;
@@ -974,7 +1085,8 @@ export class System {
 			// this.numStrikesRemaining += level.numAwardOhajikis;
 		} else {
 			this.remainNorma = level.norma;
-			this.numStrikesRemaining = this.config.general.initialNumStrikesRemaining;
+			this.numStrikesRemaining =
+				this.config.general.initialNumStrikesRemaining;
 		}
 
 		const field = this.config.fields[this.fieldIndex];
@@ -987,12 +1099,12 @@ export class System {
 			boxArea: {
 				pos: {
 					x: (deployArea.right + deployArea.left) / 2,
-					y: (deployArea.bottom + deployArea.top) / 2
+					y: (deployArea.bottom + deployArea.top) / 2,
 				},
 				size: {
 					x: deployArea.right - deployArea.left,
-					y: deployArea.bottom - deployArea.top
-				}
+					y: deployArea.bottom - deployArea.top,
+				},
 			},
 			hidden,
 
@@ -1002,7 +1114,7 @@ export class System {
 			world: this.world,
 
 			root: this.ohajikiLayer,
-			logger: this.logger
+			logger: this.logger,
 		});
 
 		this.levelE.worldId = this.worldId;
@@ -1028,7 +1140,7 @@ export class System {
 		const deployArea = field.deployArea;
 		const hidden = true;
 		const ohajikiParam = this.config.ohajikis.filter(
-			param => param.id === this.config.crystalOhajiki.ohajikiId
+			(param) => param.id === this.config.crystalOhajiki.ohajikiId,
 		)[0];
 
 		return deployOhajiki(numCrystalOhajiki, {
@@ -1043,18 +1155,18 @@ export class System {
 			boxArea: {
 				pos: {
 					x: (deployArea.right + deployArea.left) / 2,
-					y: (deployArea.bottom + deployArea.top) / 2
+					y: (deployArea.bottom + deployArea.top) / 2,
 				},
 				size: {
 					x: deployArea.right - deployArea.left,
-					y: deployArea.bottom - deployArea.top
-				}
+					y: deployArea.bottom - deployArea.top,
+				},
 			},
 
 			root: this.ohajikiLayer,
 			hidden,
 
-			logger: this.logger
+			logger: this.logger,
 		});
 	}
 
@@ -1144,7 +1256,11 @@ export class System {
 	}
 
 	getRandomOhajiliLife(param: OhajikiParameter): number {
-		return utils.randomInt(this.rand, param.lifeRange[0], param.lifeRange[1]);
+		return utils.randomInt(
+			this.rand,
+			param.lifeRange[0],
+			param.lifeRange[1],
+		);
 	}
 
 	getStrikePosition(): Vector2Like {
@@ -1161,25 +1277,28 @@ export class System {
 	 */
 	tweakLifeIfInaPinch(life: number): number {
 		const newLife =
-			this.numStrikesRemaining <= 2 ?
-				this.numStrikesRemaining + 1 :
-				life;
+			this.numStrikesRemaining <= 2 ? this.numStrikesRemaining + 1 : life;
 		return newLife < life ? newLife : life;
 	}
 
-	putPlayerOhajiki(param: PlayerOhajikiGameEntityParam = {}): OhajikiGameEntity | null {
+	putPlayerOhajiki(
+		param: PlayerOhajikiGameEntityParam = {},
+	): OhajikiGameEntity | null {
 		const position = param.position || this.getStrikePosition();
 		const allowDeployOhajikiOutside =
-			typeof param.allowDeployOhajikiOutside === "boolean" ?
-				param.allowDeployOhajikiOutside :
-				false;
+			typeof param.allowDeployOhajikiOutside === "boolean"
+				? param.allowDeployOhajikiOutside
+				: false;
 		const ohajikiParam = param.ohajikiParam || this.getPlayerOhajikiParam();
 		if (!ohajikiParam) {
 			return null;
 		}
-		const life = param.life != null ?
-			param.life :
-			this.tweakLifeIfInaPinch(this.getRandomOhajiliLife(ohajikiParam));
+		const life =
+			param.life != null
+				? param.life
+				: this.tweakLifeIfInaPinch(
+					this.getRandomOhajiliLife(ohajikiParam),
+				);
 		// const life = 10;
 
 		if (!allowDeployOhajikiOutside) {
@@ -1216,13 +1335,13 @@ export class System {
 				radius: ohajikiParam.radius,
 				position,
 				mu: ohajikiParam.mu,
-				restitution: ohajikiParam.restitution
+				restitution: ohajikiParam.restitution,
 			},
 
 			blastRadius: ohajikiParam.blast.radius,
 			blastImpulse: ohajikiParam.blast.impulse,
 
-			logger: this.logger
+			logger: this.logger,
 		});
 
 		this.entityManager.register(ohajikiGameEntity);
@@ -1243,18 +1362,24 @@ export class System {
 
 		this.oneWayBorder = new Border(
 			oneWayBorderCorners[0],
-			oneWayBorderCorners[1]
+			oneWayBorderCorners[1],
 		);
 		this.oneWayBorder.betaScale = 0;
 		borders.push(this.oneWayBorder);
 
 		Array.prototype.push.apply(this.world.borders, borders);
 
-		this.world.borders.forEach(border => {
+		this.world.borders.forEach((border) => {
 			this.entityManager.register(new BorderGameEntity(border));
 		});
 
-		this.oneWayBorderSlope = new OneWayBorderSlope(this.world, this.oneWayBorder, 8, param.tossArea, this.logger);
+		this.oneWayBorderSlope = new OneWayBorderSlope(
+			this.world,
+			this.oneWayBorder,
+			8,
+			param.tossArea,
+			this.logger,
+		);
 	}
 
 	getPlayerPanelTrayPosition(): Vector2Like {
@@ -1265,14 +1390,40 @@ export class System {
 		return this.playerPanelTray.playerPanels[idx];
 	}
 
-	addPlayerPanel(playerData: PlayerData, highlit: boolean, tween: tl.Tween): tl.Tween {
+	addPlayerPanel(
+		playerData: PlayerData,
+		highlit: boolean,
+		tween: tl.Tween,
+	): tl.Tween {
+		this.playerPanelTray.pushPanel(
+			this.createPlayerPanel(playerData, highlit),
+			tween,
+		);
+
+		return tween;
+	}
+
+	/**
+	 * プレイヤーパネルの生成。トレイへの追加は呼び出し側で行う。
+	 */
+	private createPlayerPanel(
+		playerData: PlayerData,
+		highlit: boolean,
+	): PlayerPanelE {
 		const scene = this.scene;
 		const player = playerData.player;
 
 		const ohajikiE = createOhajikiE(
-			scene, "normal", false,
-			playerData.ohajikiLife, { x: 0, y: 0 },
-			false
+			scene,
+			"normal",
+			false,
+			playerData.ohajikiLife,
+			{ x: 0, y: 0 },
+			false,
+		);
+
+		const panelImageAsset = scene.asset.getImage(
+			"/assets/gameplay/player/panel_next.png",
 		);
 
 		const playerPanel = new PlayerPanelE({
@@ -1280,20 +1431,223 @@ export class System {
 			name: player.screenName || player.name || player.id,
 			font: this.panelFont,
 			highlit: highlit,
-			normalImageAsset: scene.asset.getImage("/assets/gameplay/player/panel_next.png"),
-			blinkImageAsset: scene.asset.getImage("/assets/gameplay/player/panel_next_tosen.png"),
-			hilightImageAsset: scene.asset.getImage("/assets/gameplay/player/panel_player.png"),
-			playerImageAsset: scene.asset.getImage("/assets/gameplay/player/panel_player_text.png"),
-			ohajikiE
+			normalImageAsset: panelImageAsset,
+			blinkImageAsset: scene.asset.getImage(
+				"/assets/gameplay/player/panel_next_tosen.png",
+			),
+			hilightImageAsset: scene.asset.getImage(
+				"/assets/gameplay/player/panel_player.png",
+			),
+			playerImageAsset: scene.asset.getImage(
+				"/assets/gameplay/player/panel_player_text.png",
+			),
+			ohajikiE,
 		});
 
-		this.playerPanelTray.pushPanel(playerPanel, tween);
+		// 放送者(部屋主)だけに、自分以外のプレイヤーを追放するメニューを見せる。
+		// 誰が発行してよいかを決めるのは実行基盤なので、これは表示の出し分けにすぎない。
+		// banModeE は放送者のインスタンスにしか無く、置くのもローカルエンティティである
+		// BanMenuE に限る。
+		// 自分のパネルにも BAN ボタンの無いメニューを置く。パネル以外のタップで
+		// BAN モードを解除するので、自分のパネルのタップでは解除させない。
+		if (this.banModeE) {
+			playerPanel.append(
+				new BanMenuE({
+					scene,
+					panelWidth: panelImageAsset.width,
+					panelHeight: panelImageAsset.height,
+					buttonImageAsset: scene.asset.getImage(
+						"/assets/gameplay/ui/ban_button.png",
+					),
+					buttonPressedImageAsset: scene.asset.getImage(
+						"/assets/gameplay/ui/ban_button_pressed.png",
+					),
+					playerId: player.id,
+					banMode: this.banModeE,
+					onBan:
+						player.id !== g.game.selfId
+							? (playerId) => this.requestBan(playerId)
+							: null,
+				}),
+			);
+		}
 
-		return tween;
+		return playerPanel;
+	}
+
+	/**
+	 * 追放されたプレイヤーを進行から外す。
+	 *
+	 * onPlayerBanned は全インスタンスが同一 tick で同一内容を受け取るので、
+	 * ここでの変更は決定的である。逆に、ここ以外でゲーム状態を変えてはならない。
+	 */
+	private handlePlayerBanned(playerId: string): void {
+		const playerManager = this.playerManager;
+
+		// 同じ確定の再送。すでに進行から外してある。
+		if (
+			playerManager.isBannedPlayer(playerId) &&
+			playerManager.findQueueIndex(playerId) < 0
+		) {
+			return;
+		}
+
+		// ゲームに触れていないプレイヤーの追放も届く。登録がなくても、
+		// 再入室で参加されないよう BAN リストには載せる。
+		const player =
+			playerManager.findPlayer(playerId) ?? new Player(playerId);
+
+		this.logger.info(`Remove a banned player from the game: ${playerId}`);
+
+		// 抽選対象から外し、再入室しても参加できないようにする。
+		//
+		// 実行基盤の追放はコンテンツ側の都合で拒めないので、放送者(isHost)
+		// であっても外す。追放された相手は実行基盤から切断されている以上、
+		// 待機列の先頭に残しておく方が進行を壊す。
+		playerManager.forceBan(player);
+
+		// 自分が追放されたなら途中参加もできない。
+		if (playerId === g.game.selfId && this.inPlayApplyButton) {
+			this.inPlayApplyButton.hide();
+		}
+
+		if (
+			this.playerPanelTray.playerPanels.length !==
+			playerManager.queue.length
+		) {
+			this.logger.warn(
+				"Player panels and the queue are out of sync. " +
+					`panels = ${this.playerPanelTray.playerPanels.length}, queue = ${playerManager.queue.length}`,
+			);
+		}
+
+		// 参加者が少ないと同じプレイヤーが待機列に複数並ぶので、先頭以外を
+		// すべて取り除く。
+		//
+		// 投球中(待機列の先頭)はここで外すと手番の進行が壊れるので残す。
+		// 手番は TurnState が投数を使わずに飛ばし、changePlayer() で通常どおり抜ける。
+		// 先頭から探すと先頭で止まってしまい後ろの重複が残るので、2 番目から探す。
+		//
+		// NOTE: アニメーションさせない。tween は開始時の y を捕まえて動かすので、
+		// 手番進行のタイムラインが同じパネルを動かしている最中に重なると
+		// 最終位置が壊れる（リロード後にパネルがずれる原因になっていた）。
+		let removed = 0;
+		for (;;) {
+			const index = playerManager.findQueueIndex(playerId, 1);
+			if (index < 0) {
+				break;
+			}
+			playerManager.removeQueueAt(index);
+			this.playerPanelTray.removeAtImmediately(index);
+			removed++;
+		}
+
+		if (removed === 0) {
+			return;
+		}
+
+		playerManager.fillQueue();
+
+		// 補充されたプレイヤーのパネルを並べる。
+		while (
+			playerManager.queue.length >
+			this.playerPanelTray.playerPanels.length
+		) {
+			this.playerPanelTray.addPanel(
+				this.createPlayerPanel(
+					playerManager.queue[
+						this.playerPanelTray.playerPanels.length
+					],
+					false,
+				),
+			);
+		}
+	}
+
+	/**
+	 * 追放の解除に追従する。
+	 *
+	 * 抽選対象には戻さない。追放の間に切断されている以上、参加し直すかは
+	 * プレイヤー自身の操作に任せる。
+	 */
+	private handlePlayerUnbanned(playerId: string): void {
+		const player = this.playerManager.unban(playerId);
+
+		if (!player) {
+			return;
+		}
+
+		this.logger.info(`Unbanned player is allowed to join again: ${playerId}`);
+
+		// 自分が解除されたなら、途中参加ボタンを出し直す。
+		if (
+			playerId === g.game.selfId &&
+			this.inPlayApplyButton &&
+			!this.playerManager.findPlayer(g.game.selfId)
+		) {
+			this.showInPlayApplyButton();
+		}
+	}
+
+	/**
+	 * プレイヤーの追放を実行基盤に要求する。
+	 *
+	 * callback はローカルなので、ここでゲーム状態を変更してはならない。
+	 * 進行から外すのは onPlayerBanned の中で行うこと。
+	 * 確認ダイアログは実行基盤が出すので、ここでは確認しない。
+	 */
+	private requestBan(playerId: string): void {
+		banPlayer(playerId, (result) => {
+			if (result.ok) {
+				this.logger.info(`banPlayer accepted: ${playerId}`);
+				this.banModeE?.showMessage("banned");
+			} else {
+				this.logger.warn(
+					`banPlayer rejected: ${playerId}, reason: ${result.reason}`,
+				);
+				this.banModeE?.showMessage(result.reason ?? "Unknown");
+			}
+		});
+	}
+
+	/**
+	 * 待機列の変化に合わせてパネルを更新する。
+	 *
+	 * 先頭のパネルを取り除いたあと、パネルの無い待機列のプレイヤーのパネルを
+	 * 後ろに並べる。待機列が埋まらなかった時はパネルを足さず、空になった
+	 * 待機列が後から埋め直された時はまとめて足す。
+	 *
+	 * 追加したパネルとそのプレイヤーデータを返す。
+	 *
+	 * @param removeTop 真の時、先頭のパネルを取り除く。
+	 * @param tween 演出のアニメーションが構築される tween 。
+	 */
+	syncPlayerPanels(removeTop: boolean, tween: tl.Tween): AddedPlayerPanel[] {
+		if (removeTop) {
+			this.removePlayerPanel(tween);
+		}
+
+		const queue = this.playerManager.queue;
+		const panels = this.playerPanelTray.playerPanels;
+		const added: AddedPlayerPanel[] = [];
+
+		while (queue.length > panels.length) {
+			const index = panels.length;
+			this.addPlayerPanel(queue[index], index === 0, tween);
+			added.push({ playerData: queue[index], panel: panels[index] });
+		}
+
+		return added;
 	}
 
 	removePlayerPanel(tween: tl.Tween): tl.Tween {
 		this.playerPanelTray.removeTop(tween);
+
+		// 全員が追放されるとパネルが無くなる。
+		if (this.playerPanelTray.playerPanels.length === 0) {
+			return tween;
+		}
+
 		this.playerPanelTray.playerPanels[0].switchHighlight(true, tween);
 		return tween;
 	}
@@ -1320,16 +1674,33 @@ export class System {
 	/**
 	 * 当選演出する。
 	 *
+	 * パネルは位置ではなくエンティティで受け取る。演出が始まるまでの間に追放で
+	 * パネルが取り除かれ、並びが変わったり足りなくなったりすることがあるため。
+	 *
 	 * @param tween 演出のアニメーションを構築される tween 。
-	 * @param blink 真の時、待機列の最後尾のパネルを blink させる。偽の時、なにもしない。
+	 * @param blinkPanel blink させるパネル。null の時、なにもしない。
 	 */
-	notifyWinningByLottery(tween: tl.Tween, blink: boolean): tl.Tween {
+	notifyWinningByLottery(
+		tween: tl.Tween,
+		blinkPanel: PlayerPanelE | null,
+	): tl.Tween {
 		this.showWinning(tween);
-		if (blink) {
-			const winningPlayerPanel = this.getPlayerPanel(2);
-			winningPlayerPanel.blink = blink;
+		if (blinkPanel && !blinkPanel.destroyed()) {
+			blinkPanel.blink = true;
 		}
 		return tween;
+	}
+
+	/**
+	 * 途中参加ボタンを出す。
+	 *
+	 * ボタンは押されると touchable を落として隠れるので、出し直す時は戻す。
+	 * 戻さないと、一度途中参加した後に追放・解除されたプレイヤーが押せなくなる。
+	 */
+	showInPlayApplyButton(): void {
+		this.inPlayApplyButton.touchable = true;
+		this.inPlayApplyButton.pushed = false;
+		this.inPlayApplyButton.show();
 	}
 
 	/**
@@ -1349,7 +1720,10 @@ export class System {
 			const bodyBGameEntity = bodyB.userData as BaseGameEntity;
 
 			// ohajiki と 一方通行の の接触ならおはじきが「出て行く動き」をしている限りノーダメージにする。
-			if (bodyB !== system.oneWayBorder || bodyA.velocity.dot(bodyB.normal) < 0) {
+			if (
+				bodyB !== system.oneWayBorder ||
+				bodyA.velocity.dot(bodyB.normal) < 0
+			) {
 				let AWillDie = false;
 				let BWillDie = false;
 				bodyAGameEntity.addDamage(bodyBGameEntity);
@@ -1371,7 +1745,7 @@ export class System {
 				position: arbiter.contacts[0].point,
 				bodyA: arbiter.bodyA,
 				bodyB: arbiter.bodyB,
-				system: this
+				system: this,
 			});
 		}
 	}
@@ -1383,7 +1757,11 @@ export class System {
 	 * @param explosionCount 爆発数の初期値。
 	 * @param config コンフィグ。
 	 */
-	private createOhajikiExplosionParams(arbiters: Arbiter[], explosionCount: number, config: Configuration): ExplosionParamEx[] {
+	private createOhajikiExplosionParams(
+		arbiters: Arbiter[],
+		explosionCount: number,
+		config: Configuration,
+	): ExplosionParamEx[] {
 		const explosionParams: ExplosionParamEx[] = [];
 
 		for (let i = 0; i < arbiters.length; i++) {
@@ -1408,15 +1786,19 @@ export class System {
 					blastDamage: config.general.blastDamage,
 					sources: [bodyAGameEntity, bodyBGameEntity],
 					appearance: "big",
-					spawnCrystal: isComboBonus(explosionCount + 1, config.crystalOhajiki),
-					seAssetName: getExplosionSeAssetName(explosionCount + 1)
+					spawnCrystal: isComboBonus(
+						explosionCount + 1,
+						config.crystalOhajiki,
+					),
+					seAssetName: getExplosionSeAssetName(explosionCount + 1),
 				};
-			} else if (AWillDie || BWillDie) { // 通常の爆発（どちらか一方の爆発）。
+			} else if (AWillDie || BWillDie) {
+				// 通常の爆発（どちらか一方の爆発）。
 				const entity = AWillDie ? bodyAGameEntity : bodyBGameEntity;
 				param = createExplosionParamEx(
 					entity,
 					explosionCount + 1,
-					config.crystalOhajiki
+					config.crystalOhajiki,
 				);
 			}
 
@@ -1462,7 +1844,11 @@ export class System {
 	 * @param entities エンティティ配列。
 	 * @param explosionCount 爆発数の初期値。
 	 */
-	private updateBlastDamage(entities: (BaseGameEntity | null)[], explosionCount: number, config: Configuration): ExplosionParamEx[] {
+	private updateBlastDamage(
+		entities: (BaseGameEntity | null)[],
+		explosionCount: number,
+		config: Configuration,
+	): ExplosionParamEx[] {
 		const explosionParams: ExplosionParamEx[] = [];
 
 		for (let i = 0; i < entities.length; i++) {
@@ -1480,7 +1866,7 @@ export class System {
 				const param = createExplosionParamEx(
 					entity,
 					explosionCount + 1,
-					config.crystalOhajiki
+					config.crystalOhajiki,
 				);
 
 				if (param) {
@@ -1505,14 +1891,14 @@ export class System {
 			param.sources,
 			param.radius,
 			param.impulse,
-			param.blastDamage
+			param.blastDamage,
 		);
 
 		audio.playbackSE(param.seAssetName);
 
 		this.explosion.fire({
 			explosionParam: param,
-			system: this
+			system: this,
 		});
 	}
 
@@ -1522,80 +1908,123 @@ export class System {
 		this.originStack = new EStack(scene);
 		this.originStack.push(new g.E({ scene }));
 
-		this.ohajikiImage = scene.asset.getImage("/assets/gameplay/ui/circleBlue.png");
-		this.ohajikiStaticImage = scene.asset.getImage("/assets/gameplay/ui/circleGreen.png");
-		this.ohajikiCrystalImage = scene.asset.getImage("/assets/gameplay/ui/circleCrystal.png");
+		this.ohajikiImage = scene.asset.getImage(
+			"/assets/gameplay/ui/circleBlue.png",
+		);
+		this.ohajikiStaticImage = scene.asset.getImage(
+			"/assets/gameplay/ui/circleGreen.png",
+		);
+		this.ohajikiCrystalImage = scene.asset.getImage(
+			"/assets/gameplay/ui/circleCrystal.png",
+		);
 
 		this.panelFont = new g.DynamicFont({
 			game: g.game,
 			fontFamily: "monospace",
-			size: 32
+			size: 32,
 		});
 
 		const numberImageAssets: g.ImageAsset[] = [];
 		for (let i = 0; i < 10; i++) {
-			numberImageAssets.push(scene.asset.getImage("/assets/common/numbers/stageNum_0" + i + ".png"));
+			numberImageAssets.push(
+				scene.asset.getImage(
+					"/assets/common/numbers/stageNum_0" + i + ".png",
+				),
+			);
 		}
 
 		const difficultyImageAssets = {
 			easy: scene.asset.getImage("/assets/ui/cutin/stage_easy.png"),
 			normal: scene.asset.getImage("/assets/ui/cutin/stage_normal.png"),
 			hard: scene.asset.getImage("/assets/ui/cutin/stage_hard.png"),
-			crazy: scene.asset.getImage("/assets/ui/cutin/stage_crazy.png")
+			crazy: scene.asset.getImage("/assets/ui/cutin/stage_crazy.png"),
 		};
 
 		this.levelE = new LevelE({
 			scene,
-			x: 10, y: 10,
+			x: 10,
+			y: 10,
 			width: 180,
 			worldId: this.worldId,
 			areaId: this.areaId,
 			difficulty: this._difficulty,
 			numberImageAssets,
 			difficultyImageAssets,
-			hyphenImageAsset: scene.asset.getImage("/assets/common/numbers/stageNum_hyphen.png")
+			hyphenImageAsset: scene.asset.getImage(
+				"/assets/common/numbers/stageNum_hyphen.png",
+			),
 		});
 
 		const normaNumberImageAssets: g.ImageAsset[] = [];
 		for (let i = 0; i < 10; i++) {
-			normaNumberImageAssets.push(scene.asset.getImage("/assets/common/numbers/taskNum_0" + i + ".png"));
+			normaNumberImageAssets.push(
+				scene.asset.getImage(
+					"/assets/common/numbers/taskNum_0" + i + ".png",
+				),
+			);
 		}
 
 		const redNormaNumberImageAssets: g.ImageAsset[] = [];
 		for (let i = 0; i < 4; i++) {
-			redNormaNumberImageAssets.push(scene.asset.getImage("/assets/common/numbers/taskNum_danger_0" + i + ".png"));
+			redNormaNumberImageAssets.push(
+				scene.asset.getImage(
+					"/assets/common/numbers/taskNum_danger_0" + i + ".png",
+				),
+			);
 		}
 
 		this.normaIndicatorE = new NumberIndicatorE({
 			scene,
-			x: 200, y: 10,
+			x: 200,
+			y: 10,
 			num: 0,
 			maxIndicator: 12,
-			labelImageAsset: scene.asset.getImage("/assets/gameplay/player/task_remain.png"),
-			indicatorImageAsset: scene.asset.getImage("/assets/ui/cutin/icon_bomb.png"),
+			labelImageAsset: scene.asset.getImage(
+				"/assets/gameplay/player/task_remain.png",
+			),
+			indicatorImageAsset: scene.asset.getImage(
+				"/assets/ui/cutin/icon_bomb.png",
+			),
 			numberImageAssets: normaNumberImageAssets,
 			redNumberImageAssets: redNormaNumberImageAssets,
-			minusImageAsset: scene.asset.getImage("/assets/common/numbers/taskNum_minus.png"),
-			unitImageAsset: scene.asset.getImage("/assets/common/numbers/taskNum_ko.png")
+			minusImageAsset: scene.asset.getImage(
+				"/assets/common/numbers/taskNum_minus.png",
+			),
+			unitImageAsset: scene.asset.getImage(
+				"/assets/common/numbers/taskNum_ko.png",
+			),
 		});
 
 		this.numStrikesIndicatorE = new NumberIndicatorE({
 			scene,
-			x: 834, y: 10,
+			x: 834,
+			y: 10,
 			height: 72,
 			maxIndicator: 10,
-			labelImageAsset: scene.asset.getImage("/assets/gameplay/player/task_remain02.png"),
-			indicatorImageAsset: scene.asset.getImage("/assets/ui/cutin/icon_ball.png"),
-			redIndicatorImageAsset: scene.asset.getImage("/assets/ui/cutin/icon_ball_alert.png"),
+			labelImageAsset: scene.asset.getImage(
+				"/assets/gameplay/player/task_remain02.png",
+			),
+			indicatorImageAsset: scene.asset.getImage(
+				"/assets/ui/cutin/icon_ball.png",
+			),
+			redIndicatorImageAsset: scene.asset.getImage(
+				"/assets/ui/cutin/icon_ball_alert.png",
+			),
 			numberImageAssets: normaNumberImageAssets,
 			redNumberImageAssets: redNormaNumberImageAssets,
-			minusImageAsset: scene.asset.getImage("/assets/common/numbers/taskNum_minus.png"),
-			unitImageAsset: scene.asset.getImage("/assets/common/numbers/taskNum_tou.png")
+			minusImageAsset: scene.asset.getImage(
+				"/assets/common/numbers/taskNum_minus.png",
+			),
+			unitImageAsset: scene.asset.getImage(
+				"/assets/common/numbers/taskNum_tou.png",
+			),
 		});
 
 		this.background = new g.Sprite({
 			scene,
-			src: scene.asset.getImage("/assets/common/backgrounds/background.png")
+			src: scene.asset.getImage(
+				"/assets/common/backgrounds/background.png",
+			),
 		});
 
 		this.strikeButtonLayer = new g.E({ scene });
@@ -1605,18 +2034,25 @@ export class System {
 		this.playerPanelTray = new PlayerPanelTrayE({
 			scene,
 			x: 1016,
-			y: 114
+			y: 114,
 		});
 
 		this.comboBonusIndicator = new ComboBonusIndicatorE({
 			scene,
-			x: 809, y: 108,
+			x: 809,
+			y: 108,
 			count: 0,
 			numberImageAssets,
-			labelImageAsset: scene.asset.getImage("/assets/gameplay/player/chainBonus_txt.png"),
-			equalImageAsset: scene.asset.getImage("/assets/gameplay/player/chainBonus_equal.png"),
-			ohajikiImageAsset: scene.asset.getImage("/assets/common/ohajiki/ball_cleanness.png"),
-			hidden: true
+			labelImageAsset: scene.asset.getImage(
+				"/assets/gameplay/player/chainBonus_txt.png",
+			),
+			equalImageAsset: scene.asset.getImage(
+				"/assets/gameplay/player/chainBonus_equal.png",
+			),
+			ohajikiImageAsset: scene.asset.getImage(
+				"/assets/common/ohajiki/ball_cleanness.png",
+			),
+			hidden: true,
 		});
 
 		this.trailRenderer = new TrailRenderer({
@@ -1627,8 +2063,12 @@ export class System {
 
 			// 単色水色。
 			gradation: false,
-			upperTriangleSrc: this.scene.asset.getImage("/assets/gameplay/ui/upperTriangle2.png"),
-			lowerTriangleSrc: this.scene.asset.getImage("/assets/gameplay/ui/lowerTriangle2.png"),
+			upperTriangleSrc: this.scene.asset.getImage(
+				"/assets/gameplay/ui/upperTriangle2.png",
+			),
+			lowerTriangleSrc: this.scene.asset.getImage(
+				"/assets/gameplay/ui/lowerTriangle2.png",
+			),
 		});
 
 		// trail はヒットストップに関わらず更新する。
@@ -1638,20 +2078,29 @@ export class System {
 		// 途中参加ボタン。
 		const inPlayApplyButton = new InPlayApplyButton({
 			scene,
-			x: 1080, y: 544,
-			buttonImageAsset: scene.asset.getImage("/assets/gameplay/player/sanka.png"),
-			buttonPushedImageAsset: scene.asset.getImage("/assets/gameplay/player/sanka_active.png"),
+			x: 1080,
+			y: 544,
+			buttonImageAsset: scene.asset.getImage(
+				"/assets/gameplay/player/sanka.png",
+			),
+			buttonPushedImageAsset: scene.asset.getImage(
+				"/assets/gameplay/player/sanka_active.png",
+			),
 			hidden: true,
-			touchable: true
+			touchable: true,
 		});
-		inPlayApplyButton.onPointDown.add(_ev => {
+		inPlayApplyButton.onPointDown.add((_ev) => {
 			inPlayApplyButton.pushed = true;
 		});
-		inPlayApplyButton.onPointUp.add(ev => {
+		inPlayApplyButton.onPointUp.add((ev) => {
 			const x = ev.point.x + ev.startDelta.x;
 			const y = ev.point.y + ev.startDelta.y;
-			if (0 <= x && x <= inPlayApplyButton.width &&
-				0 <= y && y <= inPlayApplyButton.height) {
+			if (
+				0 <= x &&
+				x <= inPlayApplyButton.width &&
+				0 <= y &&
+				y <= inPlayApplyButton.height
+			) {
 				resolvePlayerInfo({}, (err, playerInfo) => {
 					if (err) {
 						this.logger.log("resolvePlayerInfo err:", err);
@@ -1670,23 +2119,33 @@ export class System {
 
 		this.winningRateE = new WinningRateE({
 			scene,
-			x: 1020, y: 622,
+			x: 1020,
+			y: 622,
 			opacity: 0,
-			baseImageAsset: scene.asset.getImage("/assets/gameplay/player/kakuritu.png"),
+			baseImageAsset: scene.asset.getImage(
+				"/assets/gameplay/player/kakuritu.png",
+			),
 			numberImageAssets,
-			percentImageAsset: scene.asset.getImage("/assets/common/numbers/stageNum_percent.png"),
-			lowerImageAsset: scene.asset.getImage("/assets/common/numbers/stageNum_less.png")
+			percentImageAsset: scene.asset.getImage(
+				"/assets/common/numbers/stageNum_percent.png",
+			),
+			lowerImageAsset: scene.asset.getImage(
+				"/assets/common/numbers/stageNum_less.png",
+			),
 		});
 
 		this.winningSpr = new g.Sprite({
 			scene,
-			x: 1020, y: 554,
+			x: 1020,
+			y: 554,
 			src: scene.asset.getImage("/assets/gameplay/player/text_tosen.png"),
-			hidden: true
+			hidden: true,
 		});
 
-		this.playerManager.playerAdded.add(p => this.onPlayerAddedRemoved(p));
-		this.playerManager.playerRemoved.add(p => this.onPlayerAddedRemoved(p));
+		this.playerManager.playerAdded.add((p) => this.onPlayerAddedRemoved(p));
+		this.playerManager.playerRemoved.add((p) =>
+			this.onPlayerAddedRemoved(p),
+		);
 
 		const origin = this.origin!;
 		this.scene.append(origin);
@@ -1704,6 +2163,36 @@ export class System {
 		origin.append(this.winningSpr);
 		origin.append(this.inPlayApplyButton);
 		origin.append(this.effectLayer);
+
+		// 放送者(部屋主)だけに BAN モードの切り替えを見せる。
+		// 自分の手番の全画面の投石ボタンにタップを奪われないよう、
+		// strikeButtonLayer より上に置く。
+		//
+		// 追放を要求できない実行基盤では、押しても何も起きないので出さない。
+		// isSupported() の結果はインスタンスごとに違いうるが、BanModeE も
+		// パネルの BanMenuE もローカルエンティティなので表示の出し分けに留まる。
+		if (this.isHost && isSupported()) {
+			const messageImageAssets = {} as {
+				[id in BanMessageId]: g.ImageAsset;
+			};
+			banMessageIds.forEach((id) => {
+				messageImageAssets[id] = scene.asset.getImage(
+					`/assets/gameplay/ui/ban_msg_${id}.png`,
+				);
+			});
+
+			this.banModeE = new BanModeE({
+				scene,
+				messageImageAssets,
+				sirenOnImageAsset: scene.asset.getImage(
+					"/assets/gameplay/ui/ban_siren_on.png",
+				),
+				sirenOffImageAsset: scene.asset.getImage(
+					"/assets/gameplay/ui/ban_siren_off.png",
+				),
+			});
+			origin.append(this.banModeE);
+		}
 	}
 
 	private onPlayerAddedRemoved(_player: Player): void {
