@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v1.1.1
+
+- Misc
+  - BAN 要求時、コンテンツが把握している名前を通知
+
 ## v1.1.0
 
 - Feature

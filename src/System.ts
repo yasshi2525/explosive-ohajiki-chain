@@ -5,6 +5,7 @@ import type * as tl from "@akashic-extension/akashic-timeline";
 import { resolvePlayerInfo } from "@akashic-extension/resolve-player-info";
 import {
 	banPlayer,
+	BanTarget,
 	isSupported,
 	onPlayerBanned,
 	onPlayerUnbanned,
@@ -889,10 +890,10 @@ export class System {
 		// 接触の状態と累積ダメージに応じた爆発パラメータを生成する。
 		const explosionParams = willDie
 			? this.createOhajikiExplosionParams(
-				arbiters,
-				this.explosionCount,
-				this.config,
-			)
+					arbiters,
+					this.explosionCount,
+					this.config,
+				)
 			: [];
 
 		this.explosionCount += explosionParams.length;
@@ -1297,8 +1298,8 @@ export class System {
 			param.life != null
 				? param.life
 				: this.tweakLifeIfInaPinch(
-					this.getRandomOhajiliLife(ohajikiParam),
-				);
+						this.getRandomOhajiliLife(ohajikiParam),
+					);
 		// const life = 10;
 
 		if (!allowDeployOhajikiOutside) {
@@ -1466,7 +1467,11 @@ export class System {
 					banMode: this.banModeE,
 					onBan:
 						player.id !== g.game.selfId
-							? (playerId) => this.requestBan(playerId)
+							? (playerId) =>
+									this.requestBan({
+										playerId,
+										name: player.screenName || player.name,
+									})
 							: null,
 				}),
 			);
@@ -1577,7 +1582,9 @@ export class System {
 			return;
 		}
 
-		this.logger.info(`Unbanned player is allowed to join again: ${playerId}`);
+		this.logger.info(
+			`Unbanned player is allowed to join again: ${playerId}`,
+		);
 
 		// 自分が解除されたなら、途中参加ボタンを出し直す。
 		if (
@@ -1596,14 +1603,16 @@ export class System {
 	 * 進行から外すのは onPlayerBanned の中で行うこと。
 	 * 確認ダイアログは実行基盤が出すので、ここでは確認しない。
 	 */
-	private requestBan(playerId: string): void {
-		banPlayer(playerId, (result) => {
+	private requestBan(target: BanTarget): void {
+		banPlayer(target, (result) => {
 			if (result.ok) {
-				this.logger.info(`banPlayer accepted: ${playerId}`);
+				this.logger.info(
+					`banPlayer accepted: ${target.playerId} (name = ${target.name})`,
+				);
 				this.banModeE?.showMessage("banned");
 			} else {
 				this.logger.warn(
-					`banPlayer rejected: ${playerId}, reason: ${result.reason}`,
+					`banPlayer rejected: ${target.playerId} (name = ${target.name}), reason: ${result.reason}`,
 				);
 				this.banModeE?.showMessage(result.reason ?? "Unknown");
 			}
