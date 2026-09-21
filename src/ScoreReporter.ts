@@ -203,11 +203,18 @@ export class ScoreReporter {
 			scoreboard.setPlayerRecord(player.id, { [clearKey]: true });
 		});
 
+		// 2-1 開始時点から残った参加者でなければクリア記録自体を受け取らないので、
+		// 単独プレイの記録も与えない。
 		const soloPlayerId = this.findSoloPlayerId();
+		const soloWinnerId =
+			soloPlayerId != null &&
+			survivors.some(player => player.id === soloPlayerId)
+				? soloPlayerId
+				: null;
 
-		if (soloPlayerId != null) {
+		if (soloWinnerId != null) {
 			scoreboard.setPlayRecord({ [`${clearKey}-solo`]: true });
-			scoreboard.setPlayerRecord(soloPlayerId, {
+			scoreboard.setPlayerRecord(soloWinnerId, {
 				[`${clearKey}-solo`]: true
 			});
 		}
@@ -226,7 +233,7 @@ export class ScoreReporter {
 		this.logger.info(
 			`ScoreReporter: reported ${clearKey} to the play and ` +
 				`${survivors.length} player(s). ` +
-				`solo = ${soloPlayerId ?? "none"} ` +
+				`solo = ${soloWinnerId ?? "none"} ` +
 				`(${this.totalStrikes} strike(s)), ` +
 				`party = ${party} (min ${this.minPlayerCountSinceStage2} player(s))`
 		);

@@ -180,6 +180,59 @@ describe("ScoreReporter", () => {
 			expect(external.playRecord["game-clear-normal-solo"]).toBeUndefined();
 		});
 
+		it("追放されたプレイヤーには報告しない", () => {
+			const a = createPlayer("a");
+			const b = createPlayer("b");
+			const context = createSystem([a, b]);
+			const reporter = new ScoreReporter(silentLogger);
+
+			context.worldId = 1;
+			reporter.onLevelStart(context);
+
+			for (let i = 0; i < 37; i++) {
+				reporter.onStrike("a");
+			}
+			for (let i = 0; i < 3; i++) {
+				reporter.onStrike("b");
+			}
+
+			// 投球のほとんどを担った a が追放され、b だけでクリアした。
+			context.playerManager.players = [b];
+			reporter.onPlayerBanned("a");
+			reporter.onPlayerCountChanged(context);
+
+			reporter.report(context, true, null);
+
+			expect(external.playRecord["game-clear-normal-solo"]).toBeUndefined();
+			expect(external.playerRecords.a).toBeUndefined();
+		});
+
+		it("2-1開始時点の参加者でなければ報告しない", () => {
+			const a = createPlayer("a");
+			const context = createSystem([a]);
+			const reporter = new ScoreReporter(silentLogger);
+
+			context.worldId = 1;
+			reporter.onLevelStart(context);
+
+			// b が 2-1 開始後に参加し、以降の投球をほぼ一人で行った。
+			const b = createPlayer("b");
+			context.playerManager.players = [a, b];
+			reporter.onPlayerCountChanged(context);
+
+			for (let i = 0; i < 37; i++) {
+				reporter.onStrike("b");
+			}
+			for (let i = 0; i < 3; i++) {
+				reporter.onStrike("a");
+			}
+
+			reporter.report(context, true, null);
+
+			expect(external.playRecord["game-clear-normal-solo"]).toBeUndefined();
+			expect(external.playerRecords.b["game-clear-normal-solo"]).toBeUndefined();
+		});
+
 		it("ゲームオーバー時は報告しない", () => {
 			const a = createPlayer("a");
 			const context = createSystem([a]);
