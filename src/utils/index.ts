@@ -189,6 +189,7 @@ export function sendGoResult(context: System): void {
 	// 呼び出し元が active instance に限っているため、報告は確実に登録される。
 	context.scoreReporter.report(
 		context,
+		players,
 		context.isGameClear(),
 		narrowEscapeWinner || null
 	);

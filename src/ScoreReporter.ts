@@ -140,12 +140,18 @@ export class ScoreReporter {
 	 *
 	 * ゲームオーバー・ゲームクリアのどちらでも呼ぶこと。
 	 *
+	 * 母集団を引数で受け取るのは、リザルトの受賞者決定と同じ顔ぶれに対して
+	 * 報告するため。ここで参加者を読み直すと、受賞者決定との間に追放が挟まった
+	 * 時にリザルト画面と食い違う。
+	 *
 	 * @param context
+	 * @param players 受賞者決定に用いた、追放されていない参加者。
 	 * @param gameClear 真の時、全ステージクリア。
 	 * @param narrowEscapeWinner 九死に一生賞の受賞者。不在の時 null 。
 	 */
 	report(
 		context: System,
+		players: Player[],
 		gameClear: boolean,
 		narrowEscapeWinner: Player | null
 	): void {
@@ -156,7 +162,6 @@ export class ScoreReporter {
 		}
 
 		const difficulty = context.difficulty;
-		const players = context.playerManager.getAllPlayers(true);
 
 		// 最大コンボ数は、クリア・ゲームオーバーによらず全員ぶん報告する。
 		players.forEach(player => {

@@ -54,6 +54,20 @@ function createSystem(players, difficulty) {
 	return context;
 }
 
+/**
+ * 受賞者決定と同じ顔ぶれを渡して報告する。
+ *
+ * 本番の sendGoResult() と同じく、母集団は呼び出し側が読み出して渡す。
+ */
+function report(reporter, context, gameClear, narrowEscapeWinner) {
+	reporter.report(
+		context,
+		context.playerManager.getAllPlayers(true),
+		gameClear,
+		narrowEscapeWinner
+	);
+}
+
 describe("ScoreReporter", () => {
 	let external;
 
@@ -68,7 +82,7 @@ describe("ScoreReporter", () => {
 			const context = createSystem([a, b]);
 			const reporter = new ScoreReporter(silentLogger);
 
-			reporter.report(context, false, b);
+			report(reporter, context, false, b);
 
 			expect(external.playerRecords).toEqual({
 				a: { "max-combo-normal": 5 },
@@ -81,7 +95,7 @@ describe("ScoreReporter", () => {
 			const a = createPlayer("a", 3);
 			const reporter = new ScoreReporter(silentLogger);
 
-			reporter.report(createSystem([a]), false, null);
+			report(reporter, createSystem([a]), false, null);
 
 			expect(external.playerRecords).toEqual({ a: { "max-combo-normal": 3 } });
 		});
@@ -104,7 +118,7 @@ describe("ScoreReporter", () => {
 			reporter.onPlayerBanned("b");
 			reporter.onPlayerCountChanged(context);
 
-			reporter.report(context, true, null);
+			report(reporter, context, true, null);
 
 			expect(external.playRecord).toEqual({ "game-clear-normal": true });
 			expect(external.playerRecords.a["game-clear-normal"]).toBe(true);
@@ -117,7 +131,7 @@ describe("ScoreReporter", () => {
 			const context = createSystem([a]);
 			const reporter = new ScoreReporter(silentLogger);
 
-			reporter.report(context, true, null);
+			report(reporter, context, true, null);
 
 			expect(external.playRecord).toEqual({ "game-clear-normal": true });
 			expect(external.playerRecords.a["game-clear-normal"]).toBeUndefined();
@@ -130,12 +144,37 @@ describe("ScoreReporter", () => {
 
 			context.worldId = 1;
 			reporter.onLevelStart(context);
-			reporter.report(context, true, null);
+			report(reporter, context, true, null);
 
 			expect(external.playRecord).toEqual({ "game-clear-crazy": true });
 			expect(external.playerRecords.a).toEqual({
 				"max-combo-crazy": 0,
 				"game-clear-crazy": true
+			});
+		});
+	});
+
+	describe("報告の母集団", () => {
+		it("引数で渡した顔ぶれに報告し、その後の参加者の変化に影響されない", () => {
+			const a = createPlayer("a", 7);
+			const b = createPlayer("b", 4);
+			const context = createSystem([a, b]);
+			const reporter = new ScoreReporter(silentLogger);
+
+			context.worldId = 1;
+			reporter.onLevelStart(context);
+
+			// 受賞者決定に用いた顔ぶれ。
+			const awarded = context.playerManager.getAllPlayers(true);
+
+			// 以後に b が居なくなっても、受賞者決定と同じ顔ぶれへ報告する。
+			context.playerManager.players = [a];
+
+			reporter.report(context, awarded, true, null);
+
+			expect(external.playerRecords.b).toEqual({
+				"max-combo-normal": 4,
+				"game-clear-normal": true
 			});
 		});
 	});
@@ -156,7 +195,7 @@ describe("ScoreReporter", () => {
 				}
 			});
 
-			reporter.report(context, true, null);
+			report(reporter, context, true, null);
 		}
 
 		it("投球の92.5%を占めるプレイヤーが居れば報告する", () => {
@@ -201,7 +240,7 @@ describe("ScoreReporter", () => {
 			reporter.onPlayerBanned("a");
 			reporter.onPlayerCountChanged(context);
 
-			reporter.report(context, true, null);
+			report(reporter, context, true, null);
 
 			expect(external.playRecord["game-clear-normal-solo"]).toBeUndefined();
 			expect(external.playerRecords.a).toBeUndefined();
@@ -227,7 +266,7 @@ describe("ScoreReporter", () => {
 				reporter.onStrike("a");
 			}
 
-			reporter.report(context, true, null);
+			report(reporter, context, true, null);
 
 			expect(external.playRecord["game-clear-normal-solo"]).toBeUndefined();
 			expect(external.playerRecords.b["game-clear-normal-solo"]).toBeUndefined();
@@ -241,7 +280,7 @@ describe("ScoreReporter", () => {
 			for (let i = 0; i < 10; i++) {
 				reporter.onStrike("a");
 			}
-			reporter.report(context, false, null);
+			report(reporter, context, false, null);
 
 			expect(external.playRecord).toEqual({});
 		});
@@ -268,7 +307,7 @@ describe("ScoreReporter", () => {
 			context.playerManager.players = players.concat([createPlayer("p5")]);
 			reporter.onPlayerCountChanged(context);
 
-			reporter.report(context, true, null);
+			report(reporter, context, true, null);
 
 			expect(external.playRecord["game-clear-normal-party"]).toBe(true);
 			expect(external.playerRecords.p0["game-clear-normal-party"]).toBe(true);
@@ -292,7 +331,7 @@ describe("ScoreReporter", () => {
 			context.playerManager.players = players.slice(0, 4).concat([createPlayer("p5")]);
 			reporter.onPlayerCountChanged(context);
 
-			reporter.report(context, true, null);
+			report(reporter, context, true, null);
 
 			expect(external.playRecord["game-clear-normal-party"]).toBeUndefined();
 			expect(external.playRecord["game-clear-normal"]).toBe(true);
@@ -310,7 +349,7 @@ describe("ScoreReporter", () => {
 			context.worldId = 1;
 			reporter.onLevelStart(context);
 
-			reporter.report(context, true, null);
+			report(reporter, context, true, null);
 
 			expect(external.playRecord["game-clear-normal-party"]).toBe(true);
 		});
@@ -330,7 +369,7 @@ describe("ScoreReporter", () => {
 			context.worldId = 2;
 			reporter.onLevelStart(context);
 
-			reporter.report(context, true, null);
+			report(reporter, context, true, null);
 
 			expect(external.playerRecords.a["game-clear-normal"]).toBe(true);
 			expect(external.playerRecords.b["game-clear-normal"]).toBeUndefined();
@@ -344,7 +383,7 @@ describe("ScoreReporter", () => {
 			const a = createPlayer("a", 7);
 			const reporter = new ScoreReporter(silentLogger);
 
-			reporter.report(createSystem([a]), true, a);
+			report(reporter, createSystem([a]), true, a);
 
 			expect(external.playRecord).toEqual({});
 			expect(external.playerRecords).toEqual({});
