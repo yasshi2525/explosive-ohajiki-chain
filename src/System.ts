@@ -1511,9 +1511,10 @@ export class System {
 
 		this.logger.info(`Remove a banned player from the game: ${playerId}`);
 
-		// 記録の対象から外す。forceBan() より先に呼んでも後に呼んでも同じだが、
-		// 追放の確定と同じ場所に置いて見落とさないようにする。
-		this.scoreReporter.onPlayerBanned(playerId);
+		// 記録の対象から外す。forceBan() 経由の playerRemoved でも拾えるが、
+		// 未登録のプレイヤーでは removePlayer() が何もせず発火しないため、
+		// 追放の確定と同じ場所でも明示的に呼ぶ。
+		this.scoreReporter.onPlayerRemoved(playerId);
 
 		// 抽選対象から外し、再入室しても参加できないようにする。
 		//
@@ -2165,6 +2166,13 @@ export class System {
 		this.playerManager.playerAdded.add((p) => this.onPlayerAddedRemoved(p));
 		this.playerManager.playerRemoved.add((p) =>
 			this.onPlayerAddedRemoved(p),
+		);
+
+		// 進行から外れた相手を記録の母集団から外す。removePlayer() の呼び出し元は
+		// forceBan() だけなので、ここは「BAN で外れた」と 1:1 に対応する。
+		// 自動投石による除名も通るため、実行基盤の追放だけを見るより取りこぼしがない。
+		this.playerManager.playerRemoved.add((p) =>
+			this.scoreReporter.onPlayerRemoved(p.id),
 		);
 
 		const origin = this.origin!;

@@ -110,14 +110,18 @@ export class ScoreReporter {
 	}
 
 	/**
-	 * プレイヤーの追放に追従する。
+	 * プレイヤーが進行から外れたことに追従する。
 	 *
-	 * 追放された相手は「クリア時まで参加し続けた」に当たらないので母集団から外す。
-	 * 追放が解除されても戻さない。抜けがあった事実は変わらないため。
+	 * 外れた相手は「クリア時まで参加し続けた」に当たらないので母集団から外す。
+	 * 復帰しても戻さない。抜けがあった事実は変わらないため。
 	 *
-	 * @param playerId 追放されたプレイヤーのID。
+	 * 実行基盤による追放だけでなく、自動投石2回による除名 (PlayerManager#ban)
+	 * も対象。前者だけを見ていると、除名されたあと BAN 解除で復帰した相手に
+	 * クリア記録を渡してしまう。
+	 *
+	 * @param playerId 進行から外れたプレイヤーのID。
 	 */
-	onPlayerBanned(playerId: string): void {
+	onPlayerRemoved(playerId: string): void {
 		if (this.stage2Survivors) {
 			delete this.stage2Survivors[playerId];
 		}

@@ -115,7 +115,7 @@ describe("ScoreReporter", () => {
 			// c が途中参加し、b が追放された。
 			const c = createPlayer("c");
 			context.playerManager.players = [a, c];
-			reporter.onPlayerBanned("b");
+			reporter.onPlayerRemoved("b");
 			reporter.onPlayerCountChanged(context);
 
 			report(reporter, context, true, null);
@@ -124,6 +124,30 @@ describe("ScoreReporter", () => {
 			expect(external.playerRecords.a["game-clear-normal"]).toBe(true);
 			expect(external.playerRecords.c["game-clear-normal"]).toBeUndefined();
 			expect(external.playerRecords.b).toBeUndefined();
+		});
+
+		it("一度進行から外れたプレイヤーは、復帰していてもクリア記録を受け取らない", () => {
+			const a = createPlayer("a");
+			const b = createPlayer("b");
+			const context = createSystem([a, b]);
+			const reporter = new ScoreReporter(silentLogger);
+
+			context.worldId = 1;
+			reporter.onLevelStart(context);
+
+			// b が自動投石2回で除名された。
+			context.playerManager.players = [a];
+			reporter.onPlayerRemoved("b");
+			reporter.onPlayerCountChanged(context);
+
+			// BAN 解除で b が復帰し、その状態でクリアした。
+			context.playerManager.players = [a, b];
+			reporter.onPlayerCountChanged(context);
+
+			report(reporter, context, true, null);
+
+			expect(external.playerRecords.a["game-clear-normal"]).toBe(true);
+			expect(external.playerRecords.b["game-clear-normal"]).toBeUndefined();
 		});
 
 		it("2-1に到達していなければプレイ自体にだけクリア記録を報告する", () => {
@@ -237,7 +261,7 @@ describe("ScoreReporter", () => {
 
 			// 投球のほとんどを担った a が追放され、b だけでクリアした。
 			context.playerManager.players = [b];
-			reporter.onPlayerBanned("a");
+			reporter.onPlayerRemoved("a");
 			reporter.onPlayerCountChanged(context);
 
 			report(reporter, context, true, null);
@@ -325,7 +349,7 @@ describe("ScoreReporter", () => {
 
 			// 追放で4人に減り、その後また5人に戻った。
 			context.playerManager.players = players.slice(0, 4);
-			reporter.onPlayerBanned("p4");
+			reporter.onPlayerRemoved("p4");
 			reporter.onPlayerCountChanged(context);
 
 			context.playerManager.players = players.slice(0, 4).concat([createPlayer("p5")]);
