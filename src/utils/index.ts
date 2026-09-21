@@ -182,7 +182,7 @@ export function sendGoResult(context: System): void {
 			.filter(player => player.playRecord.narrowEscape != null)
 			.sort((a, b) => b.playRecord.narrowEscape!.norma - a.playRecord.narrowEscape!.norma)
 			.filter((player, _idx, arr) => player.playRecord.narrowEscape!.norma === arr[0].playRecord.narrowEscape!.norma);
-	const nonTitleNarrowEscapeWinners = narrowEscapePlayers.filter(player => [niceWinner, comboWinner].indexOf(player));
+	const nonTitleNarrowEscapeWinners = narrowEscapePlayers.filter(player => [niceWinner, comboWinner].indexOf(player) === -1);
 	const narrowEscapeWinner = nonTitleNarrowEscapeWinners[0] || narrowEscapePlayers[0];
 
 	// 実行基盤への報告。受賞者の決定と同じ値を使うので、ここで行う。
