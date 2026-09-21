@@ -146,8 +146,8 @@ export function applyForPlay(context: System): void {
 /**
  * "go-result" アクションを送信する。
  *
- * リザルト用の受賞者決定を行う。そのためのプレイ記録は active instance で
- * のみ集計されていることに注意。
+ * リザルト用の受賞者決定を行い、あわせてプレイ記録を実行基盤へ報告する。
+ * そのためのプレイ記録は active instance でのみ集計されていることに注意。
  *
  * @param context
  */
@@ -184,6 +184,14 @@ export function sendGoResult(context: System): void {
 			.filter((player, _idx, arr) => player.playRecord.narrowEscape!.norma === arr[0].playRecord.narrowEscape!.norma);
 	const nonTitleNarrowEscapeWinners = narrowEscapePlayers.filter(player => [niceWinner, comboWinner].indexOf(player));
 	const narrowEscapeWinner = nonTitleNarrowEscapeWinners[0] || narrowEscapePlayers[0];
+
+	// 実行基盤への報告。受賞者の決定と同じ値を使うので、ここで行う。
+	// 呼び出し元が active instance に限っているため、報告は確実に登録される。
+	context.scoreReporter.report(
+		context,
+		context.isGameClear(),
+		narrowEscapeWinner || null
+	);
 
 	context.scene.send({
 		type: "go-result",

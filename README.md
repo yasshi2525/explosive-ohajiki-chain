@@ -10,6 +10,14 @@
 - プレイヤー名をユーザ名取得プラグインで取得
 - 放送者（部屋主）が投球待ちキューのプレイヤーをプレイヤー追放プラグインで BAN 可能に（BAN されたプレイヤーは待機列・抽選から外れる）
   - BAN 機能は [`@multi-indiegame/akashic-player-ban`](https://github.com/multi-indiegame/akashic-player-ban) に対応した実行基盤で有効になります
+- ゲーム終了時、結果を登録
+  - ## スコア登録機能は [`@multi-indiegame/akashic-scoreboard`](https://github.com/multi-indiegame/akashic-scoreboard) に対応した実行基盤で有効になります
+    - 全レベルクリア (`2-1`開始時点で参加していたプレイヤー)
+      - `92.5%` 一人で投石した場合、ソロプレイクリア
+      - `5` 人以上 (`2-1`開始時点以降)でクリアした場合、多人数プレイクリア
+    - ゲーム終了時
+      - 最大コンボ数
+      - 急死に一生賞受賞
 
 ## ビルド方法
 

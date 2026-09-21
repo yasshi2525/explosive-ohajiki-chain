@@ -615,6 +615,14 @@ export class TurnState extends BaseState {
 
 				audio.playbackSE("/assets/gameplay/se/strike_stone");
 
+				// 投球の記録。自動投石もその手番の投球として数える。
+				// 追放によって待機列が空になった手番では数える相手がいない。
+				if (context.playerManager.queue.length > 0) {
+					context.scoreReporter.onStrike(
+						context.playerManager.getCurrentPlayer().id,
+					);
+				}
+
 				if (command.autoStrike) {
 					const player = context.playerManager.getCurrentPlayer();
 					player.autoStrikeCount++;

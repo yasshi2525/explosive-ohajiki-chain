@@ -3,9 +3,9 @@ import * as utils from "./utils";
 import * as coe from "@akashic-extension/coe";
 import type * as tl from "@akashic-extension/akashic-timeline";
 import { resolvePlayerInfo } from "@akashic-extension/resolve-player-info";
+import type { BanTarget } from "@multi-indiegame/akashic-player-ban";
 import {
 	banPlayer,
-	BanTarget,
 	isSupported,
 	onPlayerBanned,
 	onPlayerUnbanned,
@@ -19,6 +19,7 @@ import type { Arbiter, Ohajiki } from "./ohajiki";
 import type { Logger } from "./Logger";
 import { Player } from "./Player";
 import { PlayerManager } from "./PlayerManager";
+import { ScoreReporter } from "./ScoreReporter";
 import type { PlayerData } from "./PlayerManager";
 import {
 	applyBlast,
@@ -534,6 +535,9 @@ export class System {
 
 	playerManager!: PlayerManager;
 
+	/** プレイ記録の集計と実行基盤への報告。 */
+	scoreReporter: ScoreReporter;
+
 	timeManager!: TimeManager;
 
 	/** 手持ちの投石用おはじきの数。 */
@@ -685,6 +689,7 @@ export class System {
 		this.fieldIndex = 0;
 		this.slopeActive = false;
 		this.banModeE = null;
+		this.scoreReporter = new ScoreReporter(logger);
 
 		this.explosion = new g.Trigger<ExplosionEvent>();
 		this.spark = new g.Trigger<SparkEvent>();
@@ -890,10 +895,10 @@ export class System {
 		// 接触の状態と累積ダメージに応じた爆発パラメータを生成する。
 		const explosionParams = willDie
 			? this.createOhajikiExplosionParams(
-					arbiters,
-					this.explosionCount,
-					this.config,
-				)
+				arbiters,
+				this.explosionCount,
+				this.config,
+			)
 			: [];
 
 		this.explosionCount += explosionParams.length;
@@ -1122,6 +1127,8 @@ export class System {
 		this.levelE.areaId = this.areaId;
 		this.levelE.modified();
 
+		this.scoreReporter.onLevelStart(this);
+
 		return ohajikis;
 	}
 
@@ -1298,8 +1305,8 @@ export class System {
 			param.life != null
 				? param.life
 				: this.tweakLifeIfInaPinch(
-						this.getRandomOhajiliLife(ohajikiParam),
-					);
+					this.getRandomOhajiliLife(ohajikiParam),
+				);
 		// const life = 10;
 
 		if (!allowDeployOhajikiOutside) {
@@ -1468,10 +1475,10 @@ export class System {
 					onBan:
 						player.id !== g.game.selfId
 							? (playerId) =>
-									this.requestBan({
-										playerId,
-										name: player.screenName || player.name,
-									})
+								this.requestBan({
+									playerId,
+									name: player.screenName || player.name,
+								})
 							: null,
 				}),
 			);
@@ -1503,6 +1510,10 @@ export class System {
 			playerManager.findPlayer(playerId) ?? new Player(playerId);
 
 		this.logger.info(`Remove a banned player from the game: ${playerId}`);
+
+		// 記録の対象から外す。forceBan() より先に呼んでも後に呼んでも同じだが、
+		// 追放の確定と同じ場所に置いて見落とさないようにする。
+		this.scoreReporter.onPlayerBanned(playerId);
 
 		// 抽選対象から外し、再入室しても参加できないようにする。
 		//
@@ -2207,5 +2218,7 @@ export class System {
 	private onPlayerAddedRemoved(_player: Player): void {
 		this.winningRateE.rate = this.playerManager.calcWinningRate() * 100;
 		this.winningRateE.modified();
+
+		this.scoreReporter.onPlayerCountChanged(this);
 	}
 }
