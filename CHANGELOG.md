@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v1.2.0
+
+- Feature
+  - scoreboard 機能対応
+
 ## v1.1.1
 
 - Misc

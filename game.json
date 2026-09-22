@@ -1938,6 +1938,11 @@
 			"path": "assets/gameplay/ui/ban_msg_prompt.png",
 			"width": 447,
 			"height": 48
+		},
+		"ScoreReporter": {
+			"type": "script",
+			"path": "script/ScoreReporter.js",
+			"global": true
 		}
 	},
 	"environment": {
@@ -1949,7 +1954,8 @@
 		},
 		"external": {
 			"coeLimited": "0",
-			"playerBan": "0"
+			"playerBan": "0",
+			"scoreboard": "0"
 		}
 	},
 	"renderers": [
@@ -1979,7 +1985,9 @@
 		"node_modules/@akashic-extension/resolve-player-info/lib/index.js",
 		"node_modules/@multi-indiegame/akashic-player-ban-coe/lib/index.js",
 		"node_modules/@multi-indiegame/akashic-player-ban/lib/index.js",
-		"node_modules/@multi-indiegame/akashic-player-ban/lib/protocol.js"
+		"node_modules/@multi-indiegame/akashic-player-ban/lib/protocol.js",
+		"node_modules/@multi-indiegame/akashic-scoreboard/lib/index.js",
+		"node_modules/@multi-indiegame/akashic-scoreboard/lib/protocol.js"
 	],
 	"moduleMainScripts": {
 		"@akashic-extension/akashic-timeline": "node_modules/@akashic-extension/akashic-timeline/lib/index.js",
@@ -1987,6 +1995,7 @@
 		"@akashic-extension/akashic-hover-plugin": "node_modules/@akashic-extension/akashic-hover-plugin/lib/index.js",
 		"@akashic-extension/resolve-player-info": "node_modules/@akashic-extension/resolve-player-info/lib/index.js",
 		"@multi-indiegame/akashic-player-ban": "node_modules/@multi-indiegame/akashic-player-ban/lib/index.js",
-		"@multi-indiegame/akashic-player-ban-coe": "node_modules/@multi-indiegame/akashic-player-ban-coe/lib/index.js"
+		"@multi-indiegame/akashic-player-ban-coe": "node_modules/@multi-indiegame/akashic-player-ban-coe/lib/index.js",
+		"@multi-indiegame/akashic-scoreboard": "node_modules/@multi-indiegame/akashic-scoreboard/lib/index.js"
 	}
 }
