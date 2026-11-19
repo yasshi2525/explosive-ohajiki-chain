@@ -14,7 +14,7 @@ export interface LateJoinSliderEParameterObject extends g.EParameterObject {
 	/** 初期値。真の時 ON。 */
 	value: boolean;
 
-	/** 真の時、ドラッグとタップで切り替えられる。偽の時は表示のみ。 */
+	/** 真の時、タップで切り替えられる。偽の時は表示のみ。 */
 	interactive: boolean;
 }
 
@@ -27,14 +27,11 @@ const KNOB_MARGIN = 4;
 /** つまみの移動アニメーションのフレーム数。 */
 const KNOB_ANIM_FRAMES = 6;
 
-/** タップとみなすドラッグ量の上限 (px)。 */
-const TAP_THRESHOLD = 8;
-
 /**
  * 「2-1以降の途中参加」の許可・不許可を切り替えるスライダー。
  *
  * ラベルとスライダーは縦中央で揃える。
- * つまみをドラッグするか、トラックをタップすると値が切り替わる。
+ * 見た目はスライダーだが操作はトグルで、どこをタップしても値が切り替わる。
  * 値の変更は onValueChange で通知される。表示のみの用途では
  * interactive を偽にし、setValue() で外から値を反映する。
  */
@@ -56,8 +53,6 @@ export class LateJoinSliderE extends g.E {
 	private knobMinX: number;
 	private knobMaxX: number;
 
-	private dragging: boolean;
-	private dragStartKnobX: number;
 	private knobAnim: { from: number; to: number; cntr: number } | null;
 
 	constructor(param: LateJoinSliderEParameterObject) {
@@ -76,8 +71,6 @@ export class LateJoinSliderE extends g.E {
 		this.trackOffImageAsset = param.trackOffImageAsset;
 		this._value = param.value;
 		this.interactive = param.interactive;
-		this.dragging = false;
-		this.dragStartKnobX = 0;
 		this.knobAnim = null;
 
 		// ラベルとトラックは縦中央で揃える。
@@ -109,32 +102,9 @@ export class LateJoinSliderE extends g.E {
 		this.append(this.knobSpr);
 
 		if (this.interactive) {
-			this.onPointDown.add(ev => {
-				this.dragging = true;
-				this.knobAnim = null;
-				this.dragStartKnobX = this.knobSpr.x;
-				this.moveKnobTo(ev.point.x);
-			});
-			this.onPointMove.add(ev => {
-				if (this.dragging) {
-					this.moveKnobTo(ev.point.x);
-				}
-			});
-			this.onPointUp.add(() => {
-				if (!this.dragging) {
-					return;
-				}
-				this.dragging = false;
-
-				let next: boolean;
-				if (Math.abs(this.knobSpr.x - this.dragStartKnobX) < TAP_THRESHOLD) {
-					// ほとんど動いていない時はタップとみなして反転させる。
-					next = !this._value;
-				} else {
-					const center = (this.knobMinX + this.knobMaxX) / 2;
-					next = this.knobSpr.x > center;
-				}
-				this.commitValue(next, true);
+			// トグル: タップした位置によらず値を反転させる。
+			this.onPointDown.add(() => {
+				this.commitValue(!this._value, true);
 			});
 		}
 
@@ -167,13 +137,6 @@ export class LateJoinSliderE extends g.E {
 		if (notify && changed) {
 			this.onValueChange.fire(v);
 		}
-	}
-
-	private moveKnobTo(pointX: number): void {
-		const knobHalf = this.knobSpr.width / 2;
-		const x = Math.min(this.knobMaxX, Math.max(this.knobMinX, pointX - knobHalf));
-		this.knobSpr.x = x;
-		this.knobSpr.modified();
 	}
 
 	private updateKnobAnim(): void {

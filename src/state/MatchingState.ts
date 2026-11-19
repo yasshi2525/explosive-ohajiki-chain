@@ -403,6 +403,16 @@ class GuestMatchingState extends BaseState {
 		this.lateJoinSlider = createLateJoinSlider(context, false);
 		root.append(this.lateJoinSlider);
 
+		// ゲストには操作できない理由を添える。
+		const noteSpr = new g.Sprite({
+			scene,
+			src: scene.asset.getImage("/assets/ui/matching/txt_late_join_note.png")
+		});
+		noteSpr.x = (g.game.width - noteSpr.width) / 2;
+		noteSpr.y = this.lateJoinSlider.y + this.lateJoinSlider.height + 8;
+		noteSpr.modified();
+		root.append(noteSpr);
+
 		return root;
 	}
 }
