@@ -82,6 +82,22 @@ function createDifficultyButtons(context: System): FlashButtonE[] {
  * ゲストの画面では表示のみで、部屋主の設定変更に追従する。
  * 配置は遊び方ダイアログの下、「難易度を選択してください」の上の帯。
  */
+/**
+ * 難易度選択後のスライダーの y 座標 (部屋主)。
+ *
+ * 選択後は y=374 に「参加者が決定するまでお待ちください」が表示されるため、
+ * その下端 (429) と難易度ボタン (479) の間に逃がす。
+ */
+const SLIDER_Y_AFTER_SELECT_HOST = 432;
+
+/**
+ * 難易度選択後のスライダーの y 座標 (ゲスト)。
+ *
+ * 選択後は y=360..480 に参加ボタン、y=528 にカウントダウン (数字は
+ * 上にはみ出す) が表示され、間には収まらないため、カウントダウンの下に逃がす。
+ */
+const SLIDER_Y_AFTER_SELECT_GUEST = 600;
+
 function createLateJoinSlider(context: System, interactive: boolean): LateJoinSliderE {
 	const scene = context.scene;
 	const slider = new LateJoinSliderE({
@@ -193,6 +209,10 @@ class HostMatchingState extends BaseState {
 					this.difficultySelectMessageSpr.destroy();
 					this.difficultySequenceMessageSpr.destroy();
 
+					// 「参加者が決定するまでお待ちください」(y=374) と重ならない位置へ逃がす。
+					this.lateJoinSlider.y = SLIDER_Y_AFTER_SELECT_HOST;
+					this.lateJoinSlider.modified();
+
 					waitMsgSpr = new g.Sprite({
 						scene,
 						src: scene.asset.getImage("/assets/ui/matching/txt_wait.png"),
@@ -275,6 +295,7 @@ class GuestMatchingState extends BaseState {
 	private doingE!: DoingE;
 	private countDownE!: CountDownE;
 	private lateJoinSlider!: LateJoinSliderE;
+	private lateJoinNoteSpr!: g.Sprite;
 
 	constructor(countDownInSec: number) {
 		super();
@@ -314,6 +335,12 @@ class GuestMatchingState extends BaseState {
 				.wait(1000)
 				.call(() => {
 					this.doingE.destroy();
+
+					// 参加ボタン (y=360..480) と重ならない位置へ逃がし、
+					// 備考は参加ボタンの下に隠れるため消す。
+					this.lateJoinSlider.y = SLIDER_Y_AFTER_SELECT_GUEST;
+					this.lateJoinSlider.modified();
+					this.lateJoinNoteSpr.destroy();
 
 					this.countDownE = createCountDown(scene, 528, this.countDownInSec);
 					this.countDownE.start();
@@ -404,14 +431,14 @@ class GuestMatchingState extends BaseState {
 		root.append(this.lateJoinSlider);
 
 		// ゲストには操作できない理由を添える。
-		const noteSpr = new g.Sprite({
+		this.lateJoinNoteSpr = new g.Sprite({
 			scene,
 			src: scene.asset.getImage("/assets/ui/matching/txt_late_join_note.png")
 		});
-		noteSpr.x = (g.game.width - noteSpr.width) / 2;
-		noteSpr.y = this.lateJoinSlider.y + this.lateJoinSlider.height + 8;
-		noteSpr.modified();
-		root.append(noteSpr);
+		this.lateJoinNoteSpr.x = (g.game.width - this.lateJoinNoteSpr.width) / 2;
+		this.lateJoinNoteSpr.y = this.lateJoinSlider.y + this.lateJoinSlider.height + 8;
+		this.lateJoinNoteSpr.modified();
+		root.append(this.lateJoinNoteSpr);
 
 		return root;
 	}
