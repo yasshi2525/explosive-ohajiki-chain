@@ -83,12 +83,13 @@ function createDifficultyButtons(context: System): FlashButtonE[] {
  * 配置は遊び方ダイアログの下、「難易度を選択してください」の上の帯。
  */
 /**
- * 難易度選択後のスライダーの y 座標 (部屋主)。
+ * 難易度選択後に表示するメッセージの y 座標 (部屋主)。
  *
- * 選択後は y=374 に「参加者が決定するまでお待ちください」が表示されるため、
- * その下端 (429) と難易度ボタン (479) の間に逃がす。
+ * スライダー行 (y=336..380) と重ならないよう、選択と同時に消える
+ * 「難易度を選択してください」(y=404) の位置に表示する。
+ * 下の難易度ボタンは y=479 から。
  */
-const SLIDER_Y_AFTER_SELECT_HOST = 432;
+const HOST_MESSAGE_Y_AFTER_SELECT = 404;
 
 /**
  * 難易度選択後のスライダーの y 座標 (ゲスト)。
@@ -209,14 +210,10 @@ class HostMatchingState extends BaseState {
 					this.difficultySelectMessageSpr.destroy();
 					this.difficultySequenceMessageSpr.destroy();
 
-					// 「参加者が決定するまでお待ちください」(y=374) と重ならない位置へ逃がす。
-					this.lateJoinSlider.y = SLIDER_Y_AFTER_SELECT_HOST;
-					this.lateJoinSlider.modified();
-
 					waitMsgSpr = new g.Sprite({
 						scene,
 						src: scene.asset.getImage("/assets/ui/matching/txt_wait.png"),
-						x: 167, y: 374
+						x: 167, y: HOST_MESSAGE_Y_AFTER_SELECT
 					});
 
 					this.countDownE = createCountDown(scene, 637, this.countDownInSec);
@@ -234,7 +231,7 @@ class HostMatchingState extends BaseState {
 					const spr = new g.Sprite({
 						scene,
 						src: scene.asset.getImage("/assets/ui/matching/txt_join_set.png"),
-						x: 363, y: 374
+						x: 363, y: HOST_MESSAGE_Y_AFTER_SELECT
 					});
 					this.uiRoot.append(spr);
 				})
