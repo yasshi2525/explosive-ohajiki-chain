@@ -1988,8 +1988,8 @@
 		"assets/ui/matching/txt_join_closed.png": {
 			"type": "image",
 			"path": "assets/ui/matching/txt_join_closed.png",
-			"width": 326,
-			"height": 28
+			"width": 213,
+			"height": 64
 		}
 	},
 	"environment": {
