@@ -1774,10 +1774,10 @@ export class System {
 	private lateJoinClosedNoticeE: g.E | null = null;
 
 	/**
-	 * 途中参加ボタンがあった位置に「参加は締め切られました」を出す。
+	 * 「参加は締め切られました」を出す。
 	 *
 	 * 締め切り後に観戦している未登録プレイヤー向けの常設案内。
-	 * ボタンの右端に合わせて右寄せし、縦はボタンと中央を揃える。
+	 * 当選確率パネルと左右の端を揃え、そのすぐ上に置く。
 	 * フィールドは明るい水色で白文字が埋もれるため、暗い帯を敷く。
 	 */
 	showLateJoinClosedNotice(): void {
@@ -1790,11 +1790,17 @@ export class System {
 				),
 			});
 
-			const paddingX = 16;
 			const paddingY = 8;
+			// 当選確率パネルと左右の端を揃え、そのすぐ上に置く。
+			const panelX = this.winningRateE.x;
+			const panelWidth = scene.asset.getImage(
+				"/assets/gameplay/player/kakuritu.png",
+			).width;
+			const panelTop = this.winningRateE.y;
+			const gap = 8;
 			const container = new g.E({
 				scene,
-				width: spr.width + paddingX * 2,
+				width: panelWidth,
 				height: spr.height + paddingY * 2,
 				hidden: true,
 			});
@@ -1807,14 +1813,13 @@ export class System {
 					opacity: 0.75,
 				}),
 			);
-			spr.x = paddingX;
+			spr.x = (container.width - spr.width) / 2;
 			spr.y = paddingY;
 			spr.modified();
 			container.append(spr);
 
-			const button = this.inPlayApplyButton;
-			container.x = button.x + button.width - container.width;
-			container.y = button.y + (button.height - container.height) / 2;
+			container.x = panelX;
+			container.y = panelTop - gap - container.height;
 			container.modified();
 
 			this.lateJoinClosedNoticeE = container;
