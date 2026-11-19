@@ -131,6 +131,19 @@ export function isTimelineFinished(timeline: tl.Timeline): boolean {
 }
 
 /**
+ * 途中参加が締め切られている時、真。
+ *
+ * 締め切りは 2-1 (worldId が 1) の開始以降で、部屋主がタイトル画面で
+ * 許可しなかった場合に限る。
+ *
+ * @param allowLateJoin 部屋主が 2-1 以降の途中参加を許可した時、真。
+ * @param worldId 現在のワールドのID。
+ */
+export function isLateJoinClosed(allowLateJoin: boolean, worldId: number): boolean {
+	return !allowLateJoin && worldId >= 1;
+}
+
+/**
  * プレイヤー登録を行う。
  *
  * @param context システムコンテキスト

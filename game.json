@@ -1943,6 +1943,11 @@
 			"type": "script",
 			"path": "script/ScoreReporter.js",
 			"global": true
+		},
+		"LateJoinSliderE": {
+			"type": "script",
+			"path": "script/E/LateJoinSliderE.js",
+			"global": true
 		}
 	},
 	"environment": {

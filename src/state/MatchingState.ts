@@ -3,7 +3,7 @@ import * as utils from "../utils";
 import * as common from "./common";
 import * as tl from "@akashic-extension/akashic-timeline";
 import { resolvePlayerInfo } from "@akashic-extension/resolve-player-info";
-import { HowToPlayE, FlashButtonE, CountDownE, DoingE } from "../E";
+import { HowToPlayE, FlashButtonE, CountDownE, DoingE, LateJoinSliderE } from "../E";
 import type { System } from "../System";
 import type { OhajikiActionData, OhajikiCommand } from "../coeMessages";
 import type { OhajikiState } from "./OhajikiState";
@@ -75,6 +75,41 @@ function createDifficultyButtons(context: System): FlashButtonE[] {
 	return flashButtons;
 }
 
+/**
+ * 「2-1以降の途中参加」スライダーを作る。
+ *
+ * 部屋主の画面では操作でき、切り替えが全インスタンスへ通知される。
+ * ゲストの画面では表示のみで、部屋主の設定変更に追従する。
+ * 配置は遊び方ダイアログの下、「難易度を選択してください」の上の帯。
+ */
+function createLateJoinSlider(context: System, interactive: boolean): LateJoinSliderE {
+	const scene = context.scene;
+	const slider = new LateJoinSliderE({
+		scene,
+		labelImageAsset: scene.asset.getImage("/assets/ui/matching/txt_late_join.png"),
+		trackOnImageAsset: scene.asset.getImage("/assets/ui/matching/slider_track_on.png"),
+		trackOffImageAsset: scene.asset.getImage("/assets/ui/matching/slider_track_off.png"),
+		knobImageAsset: scene.asset.getImage("/assets/ui/matching/slider_knob.png"),
+		value: context.allowLateJoin,
+		interactive,
+		opacity: interactive ? 1 : 0.8
+	});
+	slider.x = (g.game.width - slider.width) / 2;
+	slider.y = 336;
+	slider.modified();
+
+	if (interactive) {
+		slider.onValueChange.add(allowLateJoin => {
+			scene.send({
+				type: "set-late-join",
+				allowLateJoin
+			});
+		});
+	}
+
+	return slider;
+}
+
 function createCountDown(scene: g.Scene, y: number, initialNum: number): CountDownE {
 	const numbers = "0123456789".split("").map(ch => scene.asset.getImage("/assets/common/numbers/txt_num_" + ch + ".png"));
 	const countDown = new CountDownE({
@@ -106,6 +141,7 @@ class HostMatchingState extends BaseState {
 	private difficultySelectMessageSpr!: g.Sprite;
 	private difficultySequenceMessageSpr!: g.Sprite;
 	private countDownE!: CountDownE;
+	private lateJoinSlider!: LateJoinSliderE;
 
 	constructor(countDownInSec: number) {
 		super();
@@ -134,6 +170,10 @@ class HostMatchingState extends BaseState {
 
 		if (command.type === "add-player") {
 			context.logger.log(`エントリー数: ${context.playerManager.players.length}`);
+		} else if (command.type === "set-late-join") {
+			// 自分の切り替えも含め、確定した設定へ表示を合わせる。
+			// 受付カウントダウン中も変更できるよう、ここでは無効化しない。
+			this.lateJoinSlider.setValue(command.allowLateJoin);
 		} else if (command.type === "select-difficulty") {
 			this.difficultyButtons.forEach(btn => {
 				if (btn.tag === command.difficulty) {
@@ -202,11 +242,14 @@ class HostMatchingState extends BaseState {
 		this.difficultyButtons = createDifficultyButtons(context);
 		this.difficultyButtons.forEach(btn => root.append(btn));
 
+		this.lateJoinSlider = createLateJoinSlider(context, true);
+		root.append(this.lateJoinSlider);
+
 		this.difficultySelectMessageSpr = new g.Sprite({
 			scene,
 			src: scene.asset.getImage("/assets/ui/matching/txt_choise_difficult.png"),
 			x: 307,
-			y: 375
+			y: 404
 		});
 		this.difficultySequenceMessageSpr = new g.Sprite({
 			scene,
@@ -231,6 +274,7 @@ class GuestMatchingState extends BaseState {
 	private uiRoot!: g.E;
 	private doingE!: DoingE;
 	private countDownE!: CountDownE;
+	private lateJoinSlider!: LateJoinSliderE;
 
 	constructor(countDownInSec: number) {
 		super();
@@ -259,6 +303,8 @@ class GuestMatchingState extends BaseState {
 
 		if (command.type === "add-player") {
 			context.logger.log(`エントリー数: ${context.playerManager.players.length}`);
+		} else if (command.type === "set-late-join") {
+			this.lateJoinSlider.setValue(command.allowLateJoin);
 		} else if (command.type === "select-difficulty") {
 
 			let applyButton: FlashButtonE;
@@ -354,6 +400,9 @@ class GuestMatchingState extends BaseState {
 
 		root.append(this.doingE);
 
+		this.lateJoinSlider = createLateJoinSlider(context, false);
+		root.append(this.lateJoinSlider);
+
 		return root;
 	}
 }
@@ -443,6 +492,9 @@ export class MatchingState extends BaseState {
 
 		if (command.type === "add-player") {
 			common.handleAddPlayerCommand(context, command);
+		} else if (command.type === "set-late-join") {
+			context.allowLateJoin = command.allowLateJoin;
+			context.logger.log(`Set allowLateJoin: ${command.allowLateJoin}`);
 		} else if (command.type === "start-introduction") {
 			context.difficulty = command.difficulty;
 			next = new LevelStartState({

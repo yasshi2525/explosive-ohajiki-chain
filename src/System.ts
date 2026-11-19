@@ -119,6 +119,7 @@ export interface SerializedSystem {
 	worldId: number;
 	areaId: number;
 	fieldIndex: number;
+	allowLateJoin: boolean;
 	ohajikiSers: SerializedOhajikiGameEntity[];
 }
 
@@ -593,6 +594,13 @@ export class System {
 	/** 現在のエリアのID。表示上はこれに 1 加算したものになる。 */
 	areaId: number;
 
+	/**
+	 * 2-1 以降の途中参加を認めるか。部屋主がタイトル画面で設定する。
+	 *
+	 * 既定は偽 (認めない)。ゲーム開始後は変更されない。
+	 */
+	allowLateJoin: boolean;
+
 	/** ターン番号。０から始まる。 */
 	turnNo: number;
 
@@ -682,6 +690,7 @@ export class System {
 		this._difficulty = config.general.defaultDifficulty;
 		this.worldId = 0;
 		this.areaId = 0;
+		this.allowLateJoin = false;
 		this.turnNo = 0;
 		this._numStrikesRemaining = 0;
 		this._remainNorma = 0;
@@ -947,6 +956,7 @@ export class System {
 			worldId: this.worldId,
 			areaId: this.areaId,
 			fieldIndex: this.fieldIndex,
+			allowLateJoin: this.allowLateJoin,
 			ohajikiSers: sers,
 		};
 	}
@@ -969,6 +979,7 @@ export class System {
 		this.worldId = serialized.worldId;
 		this.areaId = serialized.areaId;
 		this.fieldIndex = serialized.fieldIndex;
+		this.allowLateJoin = serialized.allowLateJoin;
 
 		this.comboBonusIndicator.count = this.crystalOhajikiCount();
 
@@ -1126,6 +1137,12 @@ export class System {
 		this.levelE.worldId = this.worldId;
 		this.levelE.areaId = this.areaId;
 		this.levelE.modified();
+
+		// 2-1 以降は、許可設定がない限り途中参加を受け付けない。
+		if (this.isLateJoinClosed() && this.inPlayApplyButton) {
+			this.inPlayApplyButton.touchable = false;
+			this.inPlayApplyButton.hide();
+		}
 
 		this.scoreReporter.onLevelStart(this);
 
@@ -1713,15 +1730,86 @@ export class System {
 	}
 
 	/**
+	 * 途中参加が締め切られている時、真。
+	 *
+	 * 締め切りは 2-1 (worldId が 1) の開始以降で、部屋主がタイトル画面で
+	 * 許可しなかった場合に限る。
+	 */
+	isLateJoinClosed(): boolean {
+		return utils.isLateJoinClosed(this.allowLateJoin, this.worldId);
+	}
+
+	/**
 	 * 途中参加ボタンを出す。
 	 *
 	 * ボタンは押されると touchable を落として隠れるので、出し直す時は戻す。
 	 * 戻さないと、一度途中参加した後に追放・解除されたプレイヤーが押せなくなる。
+	 *
+	 * 締め切り後は出さない (追放の解除で出し直される場合も含む)。
 	 */
 	showInPlayApplyButton(): void {
+		if (this.isLateJoinClosed()) {
+			return;
+		}
 		this.inPlayApplyButton.touchable = true;
 		this.inPlayApplyButton.pushed = false;
 		this.inPlayApplyButton.show();
+	}
+
+	/** 締め切りメッセージの表示中エンティティ。二重表示の防止用。 */
+	private lateJoinClosedMessageE: g.E | null = null;
+
+	/**
+	 * 途中参加が締め切られたことを自分の画面にだけ表示する。
+	 *
+	 * 参加申請が通信ラグで締め切りの後に届いたプレイヤー向け。
+	 * 全インスタンスで呼ばれるが、申請した本人のインスタンスでのみ呼ぶこと。
+	 */
+	showLateJoinClosedMessage(): void {
+		if (this.lateJoinClosedMessageE) {
+			return;
+		}
+
+		const scene = this.scene;
+		const spr = new g.Sprite({
+			scene,
+			src: scene.asset.getImage(
+				"/assets/ui/matching/txt_late_join_closed.png",
+			),
+			opacity: 0,
+		});
+		spr.x = (g.game.width - spr.width) / 2;
+		spr.y = 140;
+		spr.modified();
+
+		// フェードインして数秒見せ、フェードアウトして破棄する。
+		let cntr = 0;
+		const fadeInFrames = 10;
+		const holdFrames = g.game.fps * 3;
+		const fadeOutFrames = 10;
+		spr.onUpdate.add(() => {
+			cntr++;
+			if (cntr <= fadeInFrames) {
+				spr.opacity = cntr / fadeInFrames;
+			} else if (cntr <= fadeInFrames + holdFrames) {
+				spr.opacity = 1;
+			} else if (cntr <= fadeInFrames + holdFrames + fadeOutFrames) {
+				spr.opacity =
+					1 - (cntr - fadeInFrames - holdFrames) / fadeOutFrames;
+			} else {
+				this.lateJoinClosedMessageE = null;
+				spr.destroy();
+				return;
+			}
+			spr.modified();
+		});
+
+		this.lateJoinClosedMessageE = spr;
+		if (this.origin) {
+			this.origin.append(spr);
+		} else {
+			scene.append(spr);
+		}
 	}
 
 	/**

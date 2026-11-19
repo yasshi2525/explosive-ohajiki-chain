@@ -128,6 +128,11 @@ export class OhajikiController extends coe.COEController<
 				type: "select-difficulty",
 				difficulty: action.data.difficulty,
 			});
+		} else if (action.data.type === "set-late-join") {
+			this.broadcast({
+				type: "set-late-join",
+				allowLateJoin: action.data.allowLateJoin,
+			});
 		} else if (action.data.type === "apply") {
 			this.broadcast({
 				type: "add-player",

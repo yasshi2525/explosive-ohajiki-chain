@@ -10,6 +10,8 @@
 - プレイヤー名をユーザ名取得プラグインで取得
 - 放送者（部屋主）が投球待ちキューのプレイヤーをプレイヤー追放プラグインで BAN 可能に（BAN されたプレイヤーは待機列・抽選から外れる）
   - BAN 機能は [`@multi-indiegame/akashic-player-ban`](https://github.com/multi-indiegame/akashic-player-ban) に対応した実行基盤で有効になります
+- 途中参加は既定で 1-4 まで（2-1 の開始以降は締め切り）
+  - タイトル画面で部屋主が「2-1以降の途中参加」スライダーを ON にした場合のみ、2-1 以降も途中参加可能
 - ゲーム終了時、結果を登録
   - ## スコア登録機能は [`@multi-indiegame/akashic-scoreboard`](https://github.com/multi-indiegame/akashic-scoreboard) に対応した実行基盤で有効になります
     - 全レベルクリア (`2-1`開始時点で参加していたプレイヤー)
