@@ -1142,6 +1142,16 @@ export class System {
 		if (this.isLateJoinClosed() && this.inPlayApplyButton) {
 			this.inPlayApplyButton.touchable = false;
 			this.inPlayApplyButton.hide();
+
+			// 未登録の観戦者には、ボタンの代わりに締め切りを案内する。
+			if (
+				!this.playerManager.findPlayer(g.game.selfId ?? "") &&
+				!this.playerManager.isBannedPlayer(g.game.selfId ?? "")
+			) {
+				this.showLateJoinClosedNotice();
+			}
+		} else {
+			this.hideLateJoinClosedNotice();
 		}
 
 		this.scoreReporter.onLevelStart(this);
@@ -1543,6 +1553,7 @@ export class System {
 		// 自分が追放されたなら途中参加もできない。
 		if (playerId === g.game.selfId && this.inPlayApplyButton) {
 			this.inPlayApplyButton.hide();
+			this.hideLateJoinClosedNotice();
 		}
 
 		if (
@@ -1749,11 +1760,79 @@ export class System {
 	 */
 	showInPlayApplyButton(): void {
 		if (this.isLateJoinClosed()) {
+			// ボタンの代わりに、締め切りを案内する注意書きを出す。
+			this.showLateJoinClosedNotice();
 			return;
 		}
+		this.hideLateJoinClosedNotice();
 		this.inPlayApplyButton.touchable = true;
 		this.inPlayApplyButton.pushed = false;
 		this.inPlayApplyButton.show();
+	}
+
+	/** 締め切り案内の表示中エンティティ。 */
+	private lateJoinClosedNoticeE: g.E | null = null;
+
+	/**
+	 * 途中参加ボタンがあった位置に「参加は締め切られました」を出す。
+	 *
+	 * 締め切り後に観戦している未登録プレイヤー向けの常設案内。
+	 * ボタンの右端に合わせて右寄せし、縦はボタンと中央を揃える。
+	 * フィールドは明るい水色で白文字が埋もれるため、暗い帯を敷く。
+	 */
+	showLateJoinClosedNotice(): void {
+		if (!this.lateJoinClosedNoticeE) {
+			const scene = this.scene;
+			const spr = new g.Sprite({
+				scene,
+				src: scene.asset.getImage(
+					"/assets/ui/matching/txt_join_closed.png",
+				),
+			});
+
+			const paddingX = 16;
+			const paddingY = 8;
+			const container = new g.E({
+				scene,
+				width: spr.width + paddingX * 2,
+				height: spr.height + paddingY * 2,
+				hidden: true,
+			});
+			container.append(
+				new g.FilledRect({
+					scene,
+					width: container.width,
+					height: container.height,
+					cssColor: "#0a1030",
+					opacity: 0.75,
+				}),
+			);
+			spr.x = paddingX;
+			spr.y = paddingY;
+			spr.modified();
+			container.append(spr);
+
+			const button = this.inPlayApplyButton;
+			container.x = button.x + button.width - container.width;
+			container.y = button.y + (button.height - container.height) / 2;
+			container.modified();
+
+			this.lateJoinClosedNoticeE = container;
+			if (this.origin) {
+				this.origin.append(container);
+			} else {
+				scene.append(container);
+			}
+		}
+
+		this.lateJoinClosedNoticeE.show();
+	}
+
+	/** 締め切り案内を隠す。 */
+	hideLateJoinClosedNotice(): void {
+		if (this.lateJoinClosedNoticeE) {
+			this.lateJoinClosedNoticeE.hide();
+		}
 	}
 
 	/** 締め切りメッセージの表示中エンティティ。二重表示の防止用。 */
@@ -1776,39 +1855,61 @@ export class System {
 			src: scene.asset.getImage(
 				"/assets/ui/matching/txt_late_join_closed.png",
 			),
+		});
+
+		// フィールドは明るい水色で白文字が埋もれるため、暗い帯を敷く。
+		const paddingX = 24;
+		const paddingY = 12;
+		const container = new g.E({
+			scene,
+			width: spr.width + paddingX * 2,
+			height: spr.height + paddingY * 2,
 			opacity: 0,
 		});
-		spr.x = (g.game.width - spr.width) / 2;
-		spr.y = 140;
+		container.append(
+			new g.FilledRect({
+				scene,
+				width: container.width,
+				height: container.height,
+				cssColor: "#0a1030",
+				opacity: 0.75,
+			}),
+		);
+		spr.x = paddingX;
+		spr.y = paddingY;
 		spr.modified();
+		container.append(spr);
+		container.x = (g.game.width - container.width) / 2;
+		container.y = 140 - paddingY;
+		container.modified();
 
 		// フェードインして数秒見せ、フェードアウトして破棄する。
 		let cntr = 0;
 		const fadeInFrames = 10;
 		const holdFrames = g.game.fps * 3;
 		const fadeOutFrames = 10;
-		spr.onUpdate.add(() => {
+		container.onUpdate.add(() => {
 			cntr++;
 			if (cntr <= fadeInFrames) {
-				spr.opacity = cntr / fadeInFrames;
+				container.opacity = cntr / fadeInFrames;
 			} else if (cntr <= fadeInFrames + holdFrames) {
-				spr.opacity = 1;
+				container.opacity = 1;
 			} else if (cntr <= fadeInFrames + holdFrames + fadeOutFrames) {
-				spr.opacity =
+				container.opacity =
 					1 - (cntr - fadeInFrames - holdFrames) / fadeOutFrames;
 			} else {
 				this.lateJoinClosedMessageE = null;
-				spr.destroy();
+				container.destroy();
 				return;
 			}
-			spr.modified();
+			container.modified();
 		});
 
-		this.lateJoinClosedMessageE = spr;
+		this.lateJoinClosedMessageE = container;
 		if (this.origin) {
-			this.origin.append(spr);
+			this.origin.append(container);
 		} else {
-			scene.append(spr);
+			scene.append(container);
 		}
 	}
 

@@ -1984,6 +1984,12 @@
 			"path": "assets/ui/matching/txt_late_join_note.png",
 			"width": 196,
 			"height": 20
+		},
+		"assets/ui/matching/txt_join_closed.png": {
+			"type": "image",
+			"path": "assets/ui/matching/txt_join_closed.png",
+			"width": 326,
+			"height": 28
 		}
 	},
 	"environment": {

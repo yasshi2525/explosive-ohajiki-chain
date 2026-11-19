@@ -40,6 +40,7 @@ export function handleAddPlayerCommand(context: System, command: msg.AddPlayerCo
 		if (result) {
 			if (context.inPlayApplyButton && player.id === g.game.selfId) {
 				context.inPlayApplyButton.hide();
+				context.hideLateJoinClosedNotice();
 			}
 			context.logger.log(`Add a player. Player: ${JSON.stringify(player)}`);
 		} else {
