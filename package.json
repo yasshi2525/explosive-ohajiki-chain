@@ -63,6 +63,7 @@
     "engine.io": "6.6.12",
     "music-metadata": "12.7.0",
     "glob": "14.0.6",
-    "image-size": "1.2.1"
+    "image-size": "1.2.1",
+    "elliptic": "https://registry.npmjs.org/@mapped/elliptic/-/elliptic-6.6.4.tgz"
   }
 }
