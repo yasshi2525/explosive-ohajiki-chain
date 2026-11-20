@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v1.3.0
+
+- Feature
+  - 2-1以降の途中参加をON・OFFできるように
+
 ## v1.2.0
 
 - Feature
