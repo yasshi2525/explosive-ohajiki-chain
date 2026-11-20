@@ -1943,6 +1943,53 @@
 			"type": "script",
 			"path": "script/ScoreReporter.js",
 			"global": true
+		},
+		"LateJoinSliderE": {
+			"type": "script",
+			"path": "script/E/LateJoinSliderE.js",
+			"global": true
+		},
+		"assets/ui/matching/slider_knob.png": {
+			"type": "image",
+			"path": "assets/ui/matching/slider_knob.png",
+			"width": 36,
+			"height": 36
+		},
+		"assets/ui/matching/slider_track_off.png": {
+			"type": "image",
+			"path": "assets/ui/matching/slider_track_off.png",
+			"width": 150,
+			"height": 44
+		},
+		"assets/ui/matching/slider_track_on.png": {
+			"type": "image",
+			"path": "assets/ui/matching/slider_track_on.png",
+			"width": 150,
+			"height": 44
+		},
+		"assets/ui/matching/txt_late_join.png": {
+			"type": "image",
+			"path": "assets/ui/matching/txt_late_join.png",
+			"width": 347,
+			"height": 38
+		},
+		"assets/ui/matching/txt_late_join_closed.png": {
+			"type": "image",
+			"path": "assets/ui/matching/txt_late_join_closed.png",
+			"width": 566,
+			"height": 42
+		},
+		"assets/ui/matching/txt_late_join_note.png": {
+			"type": "image",
+			"path": "assets/ui/matching/txt_late_join_note.png",
+			"width": 196,
+			"height": 20
+		},
+		"assets/ui/matching/txt_join_closed.png": {
+			"type": "image",
+			"path": "assets/ui/matching/txt_join_closed.png",
+			"width": 213,
+			"height": 64
 		}
 	},
 	"environment": {

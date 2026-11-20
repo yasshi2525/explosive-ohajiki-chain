@@ -23,6 +23,7 @@ export * from "./LevelStartCutinE";
 export * from "./LevelClearCutinE";
 
 // 準備画面用E。
+export * from "./LateJoinSliderE";
 export * from "./HowToPlayE";
 export * from "./FlashButtonE";
 export * from "./CountDownE";

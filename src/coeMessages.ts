@@ -18,6 +18,14 @@ export interface ApplyActionData {
 	name: string;
 }
 
+/**
+ * 部屋主による「2-1以降の途中参加」の許可・不許可の設定。
+ */
+export interface SetLateJoinActionData {
+	type: "set-late-join";
+	allowLateJoin: boolean;
+}
+
 export interface StartIntroductionData {
 	type: "start-introduction";
 	difficulty: Difficulty;
@@ -98,6 +106,7 @@ export interface GoResultActionData {
 export type OhajikiActionData =
 	| SelectDifficultyActionData
 	| ApplyActionData
+	| SetLateJoinActionData
 	| StartIntroductionData
 	| StartGameActionData
 	| StrikeActionData
@@ -126,6 +135,14 @@ export interface AddPlayerCommand {
 	player: g.Player;
 	isHost: boolean;
 	name: string;
+}
+
+/**
+ * 部屋主による「2-1以降の途中参加」の許可・不許可の設定。
+ */
+export interface SetLateJoinCommand {
+	type: "set-late-join";
+	allowLateJoin: boolean;
 }
 
 export interface StartMatchingCommand {
@@ -222,6 +239,7 @@ export type OhajikiCommand =
 	| StartIntroductionCommand
 	| StartGameCommand
 	| AddPlayerCommand
+	| SetLateJoinCommand
 	| StrikeCommand
 	| GameClearCommand
 	| GameOverCommand

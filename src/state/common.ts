@@ -19,6 +19,19 @@ export function handleAddPlayerCommand(context: System, command: msg.AddPlayerCo
 	player.isHost = command.isHost;
 	player.screenName = command.name;
 
+	// 2-1 以降の途中参加が締め切られている時は登録しない。
+	// 申請が通信ラグで締め切りの後に届くことがあるので、すでに登録済みの
+	// プレイヤーでなければ、申請した本人にだけ締め切りを通知する。
+	if (context.isLateJoinClosed()) {
+		if (!context.playerManager.findPlayer(player.id)) {
+			context.logger.log(`Cancel adding a player because late join is closed. Player: ${JSON.stringify(player)}`);
+			if (player.id === g.game.selfId) {
+				context.showLateJoinClosedMessage();
+			}
+		}
+		return;
+	}
+
 	// 念の為。
 	if (context.playerManager.isBannedPlayer(player.id)) {
 		context.logger.log(`Cancel adding a player because it's a banned player. Player: ${JSON.stringify(player)}`);
@@ -27,6 +40,7 @@ export function handleAddPlayerCommand(context: System, command: msg.AddPlayerCo
 		if (result) {
 			if (context.inPlayApplyButton && player.id === g.game.selfId) {
 				context.inPlayApplyButton.hide();
+				context.hideLateJoinClosedNotice();
 			}
 			context.logger.log(`Add a player. Player: ${JSON.stringify(player)}`);
 		} else {
